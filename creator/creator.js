@@ -104,7 +104,12 @@
 
         if (!["author", "admin"].includes(profile.role)) { showGate("gateDenied"); return; }
 
+        // Viktigt: dölj gate-skärmen (annars ligger "Laddar Artikelskaparen…"
+        // kvar ovanför editorn i flödet och man måste scrolla förbi den).
+        ["gateLoading", "gateDenied", "gateLoggedOut"].forEach(id => $("#" + id).classList.add("hidden"));
+
         $("#topbarActions").style.visibility = "visible";
+        if (profile.role === "admin") $("#adminUsersBtn").classList.remove("hidden");
         initEditorUI();
         $("#editorShell").classList.remove("hidden");
 
@@ -242,6 +247,14 @@
             if (showingList) { showEditorView(); }
             else { showListView(); }
         });
+        if (state.profile.role === "admin") {
+            $("#adminUsersBtn").addEventListener("click", () => {
+                const showingAdmin = !$("#adminShell").classList.contains("hidden");
+                if (showingAdmin) { showEditorView(); }
+                else { showAdminView(); }
+            });
+            $("#userSearchInput").addEventListener("input", () => renderUsersList());
+        }
 
         // Autosave loop (lokal + Supabase-draft var 15:e sekund om ändrat)
         setInterval(autosaveTick, 15000);
@@ -252,14 +265,26 @@
 
     function showEditorView() {
         $("#listShell").classList.add("hidden");
+        $("#adminShell").classList.add("hidden");
         $("#editorShell").classList.remove("hidden");
         $("#myArticlesBtn").textContent = "Mina artiklar";
+        if ($("#adminUsersBtn")) $("#adminUsersBtn").textContent = "Användare";
     }
     function showListView() {
         $("#editorShell").classList.add("hidden");
+        $("#adminShell").classList.add("hidden");
         $("#listShell").classList.remove("hidden");
         $("#myArticlesBtn").textContent = "Tillbaka till editorn";
+        if ($("#adminUsersBtn")) $("#adminUsersBtn").textContent = "Användare";
         loadMyArticles();
+    }
+    function showAdminView() {
+        $("#editorShell").classList.add("hidden");
+        $("#listShell").classList.add("hidden");
+        $("#adminShell").classList.remove("hidden");
+        $("#myArticlesBtn").textContent = "Mina artiklar";
+        $("#adminUsersBtn").textContent = "Tillbaka till editorn";
+        loadUsers();
     }
 
     // ------------------------------------------------------------------
@@ -564,6 +589,82 @@
         $all("[data-open]").forEach(btn => btn.addEventListener("click", () => {
             history.replaceState(null, "", "index.html?id=" + btn.dataset.open);
             loadArticleIntoEditor(btn.dataset.open);
+        }));
+    }
+
+    // ------------------------------------------------------------------
+    // ANVÄNDARE (endast admin)
+    // ------------------------------------------------------------------
+    const ROLE_LABELS = { reader: "Läsare", author: "Artikelskapare", admin: "Admin" };
+    let allUsers = [];
+
+    async function loadUsers() {
+        $("#usersList").innerHTML = `<p style="color:var(--cr-ink-faint);">Laddar…</p>`;
+        const { data, error } = await supabase.from("profiles")
+            .select("id, display_name, role, created_at")
+            .order("created_at", { ascending: true });
+        if (error) { $("#usersList").innerHTML = `<p>Kunde inte hämta användare.</p>`; return; }
+        allUsers = data || [];
+        renderUsersList();
+    }
+
+    function renderUsersList() {
+        const query = ($("#userSearchInput").value || "").trim().toLowerCase();
+        const users = query
+            ? allUsers.filter(u => (u.display_name || "").toLowerCase().includes(query))
+            : allUsers;
+
+        if (!users.length) {
+            $("#usersList").innerHTML = `<p style="color:var(--cr-ink-faint);">Inga användare matchade sökningen.</p>`;
+            return;
+        }
+
+        $("#usersList").innerHTML = users.map(u => {
+            const isSelf = u.id === state.session.user.id;
+            const options = Object.keys(ROLE_LABELS).map(r =>
+                `<option value="${r}" ${r === u.role ? "selected" : ""}>${ROLE_LABELS[r]}</option>`
+            ).join("");
+            return `
+            <div class="article-list-item" data-user-row="${u.id}">
+                <div>
+                    <div class="ali-title">${escapeHtml(u.display_name)}${isSelf ? " (du)" : ""}</div>
+                    <div class="ali-meta">Registrerad ${new Date(u.created_at).toLocaleDateString("sv-SE")}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <select class="role-select" data-role-for="${u.id}" ${isSelf ? "disabled" : ""} style="padding:6px 8px;border:1px solid var(--cr-line-strong);border-radius:var(--cr-radius);background:var(--cr-panel);">
+                        ${options}
+                    </select>
+                    <button class="btn btn-outline btn-sm" data-save-role="${u.id}" ${isSelf ? "disabled" : ""}>Spara</button>
+                </div>
+            </div>`;
+        }).join("");
+
+        $all("[data-save-role]").forEach(btn => btn.addEventListener("click", async () => {
+            const userId = btn.dataset.saveRole;
+            const select = $(`[data-role-for="${userId}"]`);
+            const newRole = select.value;
+            const user = allUsers.find(u => u.id === userId);
+            if (user && user.role === newRole) { toast("Ingen ändring att spara."); return; }
+
+            btn.disabled = true;
+            btn.textContent = "Sparar…";
+            const { data, error } = await supabase.from("profiles")
+                .update({ role: newRole })
+                .eq("id", userId)
+                .select("id, role")
+                .single();
+
+            if (error || !data || data.role !== newRole) {
+                toast("Kunde inte ändra roll. Försök igen.", "error");
+                btn.disabled = false;
+                btn.textContent = "Spara";
+                return;
+            }
+
+            if (user) user.role = data.role;
+            toast(`${user ? user.display_name : "Användaren"} är nu ${ROLE_LABELS[data.role].toLowerCase()}.`, "success");
+            btn.disabled = false;
+            btn.textContent = "Spara";
         }));
     }
 
