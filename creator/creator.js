@@ -9,7 +9,19 @@
     const cfg = window.BP_CONFIG || {};
     const CONFIG_OK = cfg.supabaseUrl && !cfg.supabaseUrl.includes("DITT-PROJEKT")
         && cfg.supabasePublishableKey && !cfg.supabasePublishableKey.includes("DIN-PUBLIC");
-    const supabase = CONFIG_OK ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabasePublishableKey) : null;
+
+    let supabase = null;
+    if (CONFIG_OK) {
+        if (window.supabase && typeof window.supabase.createClient === "function") {
+            try {
+                supabase = window.supabase.createClient(cfg.supabaseUrl, cfg.supabasePublishableKey);
+            } catch (e) {
+                console.error("Kunde inte skapa Supabase-klienten:", e);
+            }
+        } else {
+            console.error("Supabase-biblioteket laddades inte (window.supabase saknas). Kontrollera nätverk/CDN.");
+        }
+    }
     const IMAGE_BUCKET = cfg.imageBucket || "article-images";
 
     const CATEGORY_LABELS = {
@@ -75,6 +87,11 @@
             toast("Supabase är inte konfigurerat i js/config.js.", "error");
             return;
         }
+        if (!supabase) {
+            showGate("gateLoggedOut");
+            toast("Supabase-biblioteket kunde inte laddas. Kontrollera din internetanslutning eller ladda om sidan.", "error");
+            return;
+        }
         showGate("gateLoading");
         const { data: { session } } = await supabase.auth.getSession();
         state.session = session;
@@ -107,6 +124,7 @@
 
     $("#gateLoginForm").addEventListener("submit", async (e) => {
         e.preventDefault();
+        if (!supabase) { toast("Supabase är inte tillgängligt just nu.", "error"); return; }
         const errEl = $("#gateAuthError");
         errEl.classList.remove("show");
         const email = $("#gateEmail").value.trim();
