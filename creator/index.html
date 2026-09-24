@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Artikelskaparen — Bjärehovs Pressen</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✍️</text></svg>">
+<link rel="stylesheet" href="creator.css">
+</head>
+<body>
+
+<!-- ============================== TOPBAR ============================== -->
+<header class="cr-topbar">
+    <a href="index.html" class="cr-brand">
+        <span class="mark">Bjärehovs</span> Pressen <span class="tag">Artikelskaparen</span>
+    </a>
+    <div class="cr-topbar-actions" id="topbarActions">
+        <span class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">Ej ändrat</span></span>
+        <button class="btn btn-ghost btn-sm" id="myArticlesBtn">Mina artiklar</button>
+        <button class="btn btn-outline btn-sm" id="newArticleBtn">Ny artikel</button>
+        <button class="btn btn-outline btn-sm" id="previewBtn">Förhandsgranska</button>
+        <button class="btn btn-outline btn-sm" id="saveDraftBtn">Spara utkast</button>
+        <button class="btn btn-primary btn-sm" id="publishBtn">Publicera</button>
+        <a href="../index.html" class="btn btn-ghost btn-sm">Till sajten</a>
+        <button class="icon-btn" id="logoutBtn" title="Logga ut" aria-label="Logga ut">
+            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        </button>
+    </div>
+</header>
+
+<!-- ============================== GATE: laddar / ej behörig / logga in ============================== -->
+<div class="gate-screen hidden" id="gateLoading">
+    <h1>Laddar Artikelskaparen…</h1>
+</div>
+
+<div class="gate-screen hidden" id="gateDenied">
+    <h1>Ingen åtkomst</h1>
+    <p>Artikelskaparen är endast till för behöriga artikelskapare (roll <strong>author</strong> eller <strong>admin</strong>). Ditt konto har inte den behörigheten.</p>
+    <a href="../index.html" class="btn btn-outline" style="margin-top:10px;">Till Bjärehovs Pressen</a>
+</div>
+
+<div class="gate-screen hidden" id="gateLoggedOut">
+    <div class="auth-box">
+        <h2 style="margin-bottom:4px;">Logga in som artikelskapare</h2>
+        <p style="color:var(--cr-ink-faint);font-size:.88rem;margin-bottom:18px;">Endast konton med rollen author eller admin kan använda verktyget.</p>
+        <div id="gateAuthError" class="form-error"></div>
+        <form id="gateLoginForm">
+            <div class="field">
+                <label for="gateEmail">E-post</label>
+                <input type="text" id="gateEmail" required>
+            </div>
+            <div class="field">
+                <label for="gatePassword">Lösenord</label>
+                <input type="password" id="gatePassword" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">Logga in</button>
+        </form>
+    </div>
+</div>
+
+<!-- ============================== HUVUDVY: EDITOR ============================== -->
+<div class="cr-shell hidden" id="editorShell">
+    <div class="cr-editor-col">
+        <div class="panel">
+            <input type="text" class="title-input" id="titleInput" placeholder="Skriv rubriken här…" maxlength="200">
+            <textarea class="excerpt-input" id="excerptInput" placeholder="Skriv en kort ingress (visas i nyhetskort och sökresultat)…" maxlength="400" rows="2"></textarea>
+
+            <div id="quillEditor"></div>
+
+            <div class="editor-footer-row">
+                <span id="wordCount">0 ord · 0 tecken</span>
+                <span id="autosaveHint">Autosparas lokalt medan du skriver</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="cr-side-col">
+        <div class="panel">
+            <h3>Metadata</h3>
+            <div class="field">
+                <label for="categorySelect">Kategori</label>
+                <div class="category-select-grid" id="categoryGrid"></div>
+            </div>
+            <div class="field">
+                <label for="slugInput">Slug (webbadress)</label>
+                <div class="slug-row">
+                    <input type="text" id="slugInput" placeholder="artikel-titel">
+                    <button class="btn btn-ghost btn-sm" id="regenSlugBtn" title="Generera från rubrik" type="button">↻</button>
+                </div>
+                <div class="field-hint">bjarehovspressen.se/#/artikel/<span id="slugPreview">…</span></div>
+            </div>
+            <div class="field">
+                <label for="publishAtInput">Publiceringstid</label>
+                <input type="datetime-local" id="publishAtInput">
+                <div class="field-hint">Lämna tomt för att publicera direkt vid publicering.</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>Omslagsbild</h3>
+            <div id="coverPreviewWrap" class="hidden">
+                <div class="cover-preview">
+                    <img id="coverPreviewImg" src="" alt="">
+                    <button class="remove-cover" id="removeCoverBtn" type="button" aria-label="Ta bort bild">✕</button>
+                </div>
+            </div>
+            <label class="cover-drop" id="coverDrop">
+                <span id="coverDropLabel">Klicka för att ladda upp omslagsbild (JPG/PNG, max 5 MB)</span>
+                <input type="file" id="coverInput" accept="image/*" class="hidden">
+            </label>
+        </div>
+
+        <div class="panel">
+            <h3>Status</h3>
+            <div class="field-hint" id="articleStatusLine">Nytt utkast — inte sparat än.</div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================== VY: MINA ARTIKLAR ============================== -->
+<div class="cr-shell hidden" id="listShell" style="grid-template-columns:1fr;">
+    <div class="panel">
+        <h3 id="myArticlesHeading">Mina artiklar</h3>
+        <div id="myArticlesList"></div>
+    </div>
+</div>
+
+<!-- ============================== FÖRHANDSGRANSKNING ============================== -->
+<div class="modal-backdrop" id="previewModal">
+    <div class="preview-box">
+        <div class="preview-topbar">
+            <strong>Förhandsgranskning</strong>
+            <button class="btn btn-ghost btn-sm" id="closePreviewBtn">Stäng</button>
+        </div>
+        <div class="preview-content">
+            <span class="cat-tag" id="pvCat"><span></span></span>
+            <h1 id="pvTitle"></h1>
+            <p class="excerpt" id="pvExcerpt"></p>
+            <div class="cover hidden" id="pvCoverWrap"><img id="pvCoverImg" src="" alt=""></div>
+            <div class="body-content" id="pvBody"></div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-stack" id="toastStack"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/supabase/2.45.4/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+<script src="../js/config.js"></script>
+<script src="creator.js"></script>
+</body>
+</html>
