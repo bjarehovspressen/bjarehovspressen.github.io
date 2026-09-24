@@ -37,6 +37,19 @@ create policy "profiles_update_own"
     using (auth.uid() = id)
     with check (auth.uid() = id);
 
+-- Admins får uppdatera VILKEN profil som helst (t.ex. sätta roll via
+-- admin-panelen i Artikelskaparen). Vad som faktiskt får ändras i role-kolumnen
+-- kontrolleras ändå alltid av triggern prevent_role_self_escalation nedan.
+drop policy if exists "profiles_update_admin" on public.profiles;
+create policy "profiles_update_admin"
+    on public.profiles for update
+    using (exists (
+        select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
+    ))
+    with check (exists (
+        select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
+    ));
+
 -- Ingen får sätta in rader manuellt via API — det sköts av triggern vid signup.
 drop policy if exists "profiles_no_direct_insert" on public.profiles;
 create policy "profiles_no_direct_insert"

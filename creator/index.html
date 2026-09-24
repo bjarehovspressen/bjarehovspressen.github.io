@@ -18,6 +18,7 @@
     <div class="cr-topbar-actions" id="topbarActions">
         <span class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">Ej ändrat</span></span>
         <button class="btn btn-ghost btn-sm" id="myArticlesBtn">Mina artiklar</button>
+        <button class="btn btn-ghost btn-sm hidden" id="adminUsersBtn">Användare</button>
         <button class="btn btn-outline btn-sm" id="newArticleBtn">Ny artikel</button>
         <button class="btn btn-outline btn-sm" id="previewBtn">Förhandsgranska</button>
         <button class="btn btn-outline btn-sm" id="saveDraftBtn">Spara utkast</button>
@@ -123,6 +124,20 @@
     <div class="panel">
         <h3 id="myArticlesHeading">Mina artiklar</h3>
         <div id="myArticlesList"></div>
+    </div>
+</div>
+
+<!-- ============================== VY: ANVÄNDARE (ADMIN) ============================== -->
+<div class="cr-shell hidden" id="adminShell" style="grid-template-columns:1fr;">
+    <div class="panel">
+        <h3>Användare</h3>
+        <p class="field-hint" style="margin-top:-6px;margin-bottom:14px;">
+            Ändra vilka konton som är läsare, artikelskapare eller admin. Du kan inte ändra din egen roll här.
+        </p>
+        <div class="field" style="max-width:320px;">
+            <input type="text" id="userSearchInput" placeholder="Sök på namn…">
+        </div>
+        <div id="usersList"></div>
     </div>
 </div>
 
