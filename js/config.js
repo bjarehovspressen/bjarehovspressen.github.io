@@ -17,8 +17,8 @@
 // ============================================================================
 
 window.BP_CONFIG = {
-    supabaseUrl: "https://DITT-PROJEKT.supabase.co",
-    supabasePublishableKey: "DIN-PUBLIC-PUBLISHABLE-KEY",
+    supabaseUrl: "https://cprexesfqcomjqzqzjew.supabase.co/rest/v1/",
+    supabasePublishableKey: "sb_publishable_m-8XiHmTmGF_tDmRc7vs4g_NlxsvCNz",
 
     // Namn på Storage-bucketen för artikelbilder (skapas av schema.sql).
     imageBucket: "article-images"
