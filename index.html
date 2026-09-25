@@ -306,6 +306,41 @@
 <!-- ============================== TOASTS ============================== -->
 <div class="toast-stack" id="toastStack"></div>
 
+<!-- ============================== AI-ASSISTENT ============================== -->
+<button class="ai-fab" id="aiAssistantFab" title="Öppna AI-assistenten" aria-label="Öppna AI-assistenten">🤖</button>
+<div class="ai-panel hidden" id="aiAssistantPanel">
+    <div class="ai-panel-head">
+        <span>🤖 AI-assistent</span>
+        <div style="display:flex;gap:6px;">
+            <a href="https://anchors-arcade.github.io/Ai-Assistant/" target="_blank" rel="noopener" class="icon-btn" title="Öppna i ny flik" style="width:30px;height:30px;">↗</a>
+            <button class="icon-btn" id="aiAssistantClose" title="Stäng" style="width:30px;height:30px;">✕</button>
+        </div>
+    </div>
+    <iframe id="aiAssistantFrame" src="" loading="lazy" title="AI-assistent"></iframe>
+</div>
+<script>
+(function () {
+    var fab = document.getElementById("aiAssistantFab");
+    var panel = document.getElementById("aiAssistantPanel");
+    var closeBtn = document.getElementById("aiAssistantClose");
+    var frame = document.getElementById("aiAssistantFrame");
+    var AI_URL = "https://anchors-arcade.github.io/Ai-Assistant/";
+    function openPanel() {
+        if (!frame.src) frame.src = AI_URL; // ladda iframen först när den faktiskt öppnas
+        panel.classList.remove("hidden");
+        fab.setAttribute("aria-expanded", "true");
+    }
+    function closePanel() {
+        panel.classList.add("hidden");
+        fab.setAttribute("aria-expanded", "false");
+    }
+    fab.addEventListener("click", function () {
+        panel.classList.contains("hidden") ? openPanel() : closePanel();
+    });
+    closeBtn.addEventListener("click", closePanel);
+})();
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
 <script src="js/site.js"></script>
