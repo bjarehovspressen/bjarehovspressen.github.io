@@ -654,8 +654,14 @@
                 .select("id, role")
                 .single();
 
-            if (error || !data || data.role !== newRole) {
-                toast("Kunde inte ändra roll. Försök igen.", "error");
+            if (error) {
+                toast("Kunde inte ändra roll: " + error.message, "error");
+                btn.disabled = false;
+                btn.textContent = "Spara";
+                return;
+            }
+            if (!data || data.role !== newRole) {
+                toast("Rollen ändrades inte. Har SQL-policyn profiles_update_admin körts i Supabase?", "error");
                 btn.disabled = false;
                 btn.textContent = "Spara";
                 return;

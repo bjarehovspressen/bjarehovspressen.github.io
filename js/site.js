@@ -561,8 +561,21 @@
                 .catch(() => toast("Kunde inte kopiera länken.", "error"));
         };
 
-        // Öka visningsräknaren (server-side via RPC).
-        if (supabase) supabase.rpc("increment_article_views", { p_article_id: article.id });
+        // Öka visningsräknaren (server-side via RPC), men bara en gång per
+        // flik/session och artikel så att en siduppdatering inte spammar
+        // räknaren. Uppdatera texten på sidan så man faktiskt SER att den ökar.
+        const viewedKey = "bp_viewed_" + article.id;
+        if (supabase && !sessionStorage.getItem(viewedKey)) {
+            supabase.rpc("increment_article_views", { p_article_id: article.id })
+                .then(({ error }) => {
+                    if (error) { console.error("increment_article_views misslyckades:", error); return; }
+                    sessionStorage.setItem(viewedKey, "1");
+                    const newViews = (article.views || 0) + 1;
+                    article.views = newViews;
+                    $("#viewsHint").textContent = newViews + " visningar";
+                })
+                .catch(err => console.error("increment_article_views misslyckades:", err));
+        }
 
         loadComments(article.id);
         renderCommentAuthState();
