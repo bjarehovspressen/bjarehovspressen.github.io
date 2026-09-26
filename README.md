@@ -65,6 +65,8 @@ Det är säkert att köra filen flera gånger — den använder `if not exists` 
 >
 > **Ännu nyare:** Kör därefter även [`supabase/migration_v3.sql`](supabase/migration_v3.sql) för att aktivera **Bjärehov-kartan** och **Veckans omröstning** (se avsnittet [Nya funktioner (v3)](#nya-funktioner-v3) nedan).
 
+> **Senast:** Kör därefter [`supabase/migration_v4.sql`](supabase/migration_v4.sql) för att aktivera **automatisk radering av artiklar** (radera manuellt, "radera om X min" eller "radera vid ett visst datum/klockslag"). Innan du kör filen, slå på tillägget **pg_cron** under *Database > Extensions* i Supabase Dashboard — annars sparas kolumnen/funktionen men den schemalagda raderingen körs aldrig automatiskt. Se kommentarerna högst upp i `migration_v4.sql`.
+
 ---
 
 ## Steg 4 — Hämta API-nycklar

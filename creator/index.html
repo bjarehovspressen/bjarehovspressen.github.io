@@ -101,6 +101,16 @@
                 <input type="datetime-local" id="publishAtInput">
                 <div class="field-hint">Lämna tomt för att publicera direkt vid publicering.</div>
             </div>
+            <div class="field">
+                <label for="deleteAtInput">🗑️ Radera automatiskt vid</label>
+                <input type="datetime-local" id="deleteAtInput">
+                <div class="quick-delete-row">
+                    <input type="number" id="deleteAfterMinInput" min="1" step="1" placeholder="t.ex. 30">
+                    <button type="button" class="btn btn-ghost btn-sm" id="setDeleteAfterMinBtn">Radera om X min</button>
+                    <button type="button" class="btn btn-ghost btn-sm" id="clearDeleteAtBtn">Rensa</button>
+                </div>
+                <div class="field-hint">Artikeln tas bort automatiskt (även från publika sajten) vid den valda tidpunkten. Lämna tomt om den inte ska raderas automatiskt.</div>
+            </div>
         </div>
 
         <div class="panel">
@@ -154,6 +164,7 @@
             <div class="field field-checkbox">
                 <label><input type="checkbox" id="isLiveInput"> 📰 Live-artikel (tidsstämplade uppdateringar)</label>
             </div>
+            <button type="button" class="btn btn-danger btn-sm hidden" id="deleteArticleBtn" style="margin-top:14px;width:100%;justify-content:center;">🗑️ Radera artikel</button>
         </div>
 
         <div class="panel hidden" id="liveComposerPanel">

@@ -102,6 +102,8 @@ a { color: inherit; }
 .btn-outline:hover:not(:disabled) { border-color: var(--cr-ink); }
 .btn-ghost { background: transparent; color: var(--cr-ink-soft); }
 .btn-ghost:hover:not(:disabled) { color: var(--cr-ink); background: var(--cr-bg); }
+.btn-danger { background: var(--cr-danger); color: #fff; }
+.btn-danger:hover:not(:disabled) { background: var(--cr-red-dark); }
 .btn-sm { padding: 6px 10px; font-size: .8rem; }
 
 .icon-btn {
@@ -151,6 +153,12 @@ a { color: inherit; }
 
 .slug-row { display: flex; align-items: center; gap: 6px; }
 .slug-row input { flex: 1; }
+
+.quick-delete-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.quick-delete-row input[type=number] {
+    width: 90px; padding: 7px 8px; border-radius: var(--cr-radius);
+    border: 1px solid var(--cr-line-strong); background: var(--cr-bg); color: var(--cr-ink);
+}
 
 /* Title input styled like a headline */
 .title-input {

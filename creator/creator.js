@@ -224,6 +224,27 @@
         });
         $("#excerptInput").addEventListener("input", markDirty);
         $("#publishAtInput").addEventListener("input", markDirty);
+        $("#deleteAtInput").addEventListener("input", markDirty);
+        $("#setDeleteAfterMinBtn").addEventListener("click", () => {
+            const mins = parseInt($("#deleteAfterMinInput").value, 10);
+            if (!Number.isFinite(mins) || mins <= 0) {
+                toast("Ange ett antal minuter (t.ex. 30).", "error");
+                return;
+            }
+            const target = new Date(Date.now() + mins * 60000);
+            $("#deleteAtInput").value = toLocalDatetimeValue(target.toISOString());
+            markDirty();
+            toast(`Artikeln raderas om ${mins} min, om du sparar.`, "success");
+        });
+        $("#clearDeleteAtBtn").addEventListener("click", () => {
+            $("#deleteAtInput").value = "";
+            $("#deleteAfterMinInput").value = "";
+            markDirty();
+        });
+        $("#deleteArticleBtn").addEventListener("click", () => {
+            if (!state.currentId) return;
+            deleteArticle(state.currentId, $("#titleInput").value.trim(), { fromEditor: true });
+        });
 
         // Cover image
         $("#coverDrop").addEventListener("click", (e) => { /* label triggers input automatically */ });
@@ -429,6 +450,7 @@
             image_url: state.coverUrl,
             content_html: state.quill ? state.quill.root.innerHTML : "",
             publish_at: $("#publishAtInput").value || null,
+            delete_at: $("#deleteAtInput").value || null,
             is_breaking: $("#isBreakingInput").checked,
             is_live: $("#isLiveInput").checked,
             latitude: parseCoord($("#latInput").value),
@@ -654,6 +676,9 @@
         $("#slugInput").value = "";
         $("#slugPreview").textContent = "…";
         $("#publishAtInput").value = "";
+        $("#deleteAtInput").value = "";
+        $("#deleteAfterMinInput").value = "";
+        $("#deleteArticleBtn").classList.add("hidden");
         $("#coverPreviewWrap").classList.add("hidden");
         $("#coverDrop").classList.remove("hidden");
         $("#isBreakingInput").checked = false;
@@ -773,7 +798,8 @@
             is_breaking: d.is_breaking,
             is_live: d.is_live,
             latitude: d.latitude,
-            longitude: d.longitude
+            longitude: d.longitude,
+            delete_at: d.delete_at ? new Date(d.delete_at).toISOString() : null
         };
         if (status === "published") {
             payload.published_at = d.publish_at ? new Date(d.publish_at).toISOString() : new Date().toISOString();
@@ -804,6 +830,7 @@
 
         state.currentId = result.data.id;
         state.dirty = false;
+        $("#deleteArticleBtn").classList.remove("hidden");
         history.replaceState(null, "", "index.html?id=" + state.currentId);
         $("#articleStatusLine").dataset.status = status;
         $("#articleStatusLine").textContent = status === "published"
@@ -837,6 +864,9 @@
         $("#slugInput").value = data.slug;
         $("#slugPreview").textContent = data.slug;
         $("#publishAtInput").value = data.published_at ? toLocalDatetimeValue(data.published_at) : "";
+        $("#deleteAtInput").value = data.delete_at ? toLocalDatetimeValue(data.delete_at) : "";
+        $("#deleteAfterMinInput").value = "";
+        $("#deleteArticleBtn").classList.remove("hidden");
         if (state.quill) state.quill.root.innerHTML = data.content_html || "";
         $all(".cat-radio").forEach(x => x.classList.toggle("checked", x.dataset.cat === data.category));
         $all('input[name="cat"]').forEach(r => r.checked = r.value === data.category);
@@ -876,6 +906,32 @@
     }
 
     // ------------------------------------------------------------------
+    // RADERA ARTIKEL (direkt, från editorn eller från listan)
+    // ------------------------------------------------------------------
+    async function deleteArticle(id, title, opts) {
+        opts = opts || {};
+        if (!id) return;
+        const ok = confirm(`Radera artikeln${title ? " \"" + title + "\"" : ""} permanent? Detta går inte att ångra.`);
+        if (!ok) return;
+
+        const { error } = await supabase.from("articles").delete().eq("id", id);
+        if (error) {
+            toast("Kunde inte radera artikeln: " + error.message, "error");
+            return;
+        }
+        try { localStorage.removeItem("bp_draft_" + id); } catch (e) {}
+        toast("Artikeln är raderad.", "success");
+
+        if (opts.fromEditor) {
+            history.replaceState(null, "", "index.html");
+            resetEditor();
+            showEditorView();
+        } else {
+            loadMyArticles();
+        }
+    }
+
+    // ------------------------------------------------------------------
     // MINA ARTIKLAR
     // ------------------------------------------------------------------
     async function loadMyArticles() {
@@ -903,12 +959,16 @@
                 <div style="display:flex;align-items:center;gap:10px;">
                     <span class="status-badge ${a.status}">${statusLabels[a.status] || a.status}</span>
                     <button class="btn btn-outline btn-sm" data-open="${a.id}">Redigera</button>
+                    <button class="btn btn-danger btn-sm" data-delete="${a.id}" data-title="${escapeHtml(a.title)}">Radera</button>
                 </div>
             </div>`).join("");
 
         $all("[data-open]").forEach(btn => btn.addEventListener("click", () => {
             history.replaceState(null, "", "index.html?id=" + btn.dataset.open);
             loadArticleIntoEditor(btn.dataset.open);
+        }));
+        $all("[data-delete]", $("#myArticlesList")).forEach(btn => btn.addEventListener("click", () => {
+            deleteArticle(btn.dataset.delete, btn.dataset.title, { fromEditor: state.currentId === btn.dataset.delete });
         }));
     }
 
