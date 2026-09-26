@@ -32,6 +32,8 @@
                 AI
             </a>
 
+            <button class="btn btn-primary btn-sm" id="tipOpenBtn">💡 Tipsa oss</button>
+
             <button class="icon-btn" id="searchOpenBtn" aria-label="Sök">
                 <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
             </button>
@@ -76,6 +78,11 @@
                 <li><a href="#/kategori/ekonomi" data-link data-cat="ekonomi">Ekonomi</a></li>
                 <li><a href="#/kategori/opinion" data-link data-cat="opinion">Opinion</a></li>
                 <li><a href="#/kategori/bus" data-link data-cat="bus">Bus</a></li>
+                <li><a href="#/kategori/skolnytt" data-link data-cat="skolnytt">Skolnytt</a></li>
+                <li><a href="#/kategori/matsedel" data-link data-cat="matsedel">Matsedel</a></li>
+                <li><a href="#/kategori/handelser" data-link data-cat="handelser">Händelser</a></li>
+                <li><a href="#/kategori/intervjuer" data-link data-cat="intervjuer">Intervjuer</a></li>
+                <li><a href="#/galleri" data-link data-cat="galleri">📸 Galleri</a></li>
             </ul>
         </div>
     </nav>
@@ -96,6 +103,9 @@
 
     <!-- ---------- STARTSIDA ---------- -->
     <section id="viewHome">
+        <div class="container">
+            <div class="missed-banner hidden" id="missedBanner"></div>
+        </div>
         <section class="hero-section container">
             <div class="hero-grid" id="heroGrid">
                 <!-- fylls av JS: huvudnyhet + toppnyheter -->
@@ -140,11 +150,28 @@
         <div class="article-grid" id="searchGrid"></div>
     </section>
 
+    <!-- ---------- BILDGALLERI ---------- -->
+    <section id="viewGallery" class="section-block container hidden">
+        <div id="galleryListView">
+            <div class="section-head"><h2>📸 Bildgalleri</h2></div>
+            <div class="article-grid" id="galleryListGrid"></div>
+        </div>
+        <div id="galleryDetailView" class="hidden">
+            <div class="section-head">
+                <h2 id="galleryDetailTitle"></h2>
+                <p id="galleryDetailDesc" style="color:var(--bp-ink-faint);"></p>
+                <a href="#/galleri" data-link class="btn btn-outline btn-sm" style="margin-top:8px;">← Alla galleri</a>
+            </div>
+            <div class="gallery-grid" id="galleryDetailGrid"></div>
+        </div>
+    </section>
+
     <!-- ---------- ARTIKELVY ---------- -->
     <article id="viewArticle" class="article-view hidden">
         <div class="container">
             <div class="article-header">
                 <span class="cat-tag" id="artCat"><span></span></span>
+                <span id="artBreakingBadge"></span>
                 <h1 id="artTitle"></h1>
                 <p class="excerpt" id="artExcerpt"></p>
             </div>
@@ -164,6 +191,11 @@
             </div>
 
             <div class="article-body" id="artBody"></div>
+
+            <section class="live-updates-block hidden" id="liveUpdatesBlock">
+                <h3>🔴 LIVE — vad händer just nu</h3>
+                <div id="liveUpdatesList"></div>
+            </section>
 
             <div class="reaction-bar" id="reactionBar">
                 <button class="reaction-btn" data-reaction="love" title="Älskar">
@@ -311,6 +343,30 @@
                 <input type="password" id="signupPassword" required minlength="6" autocomplete="new-password">
             </div>
             <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" id="signupSubmitBtn">Skapa konto</button>
+        </form>
+    </div>
+</div>
+
+<!-- ============================== TIPS-MODAL ============================== -->
+<div class="modal-backdrop" id="tipModal">
+    <div class="modal-box">
+        <button class="icon-btn modal-close" id="tipCloseBtn" aria-label="Stäng">
+            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+        <h2>💡 Har du ett nyhetstips?</h2>
+        <form id="tipFormEl">
+            <div class="field">
+                <label for="tipWhat">Vad har hänt?</label>
+                <textarea id="tipWhat" maxlength="1000" required placeholder="Berätta vad som hänt…"></textarea>
+            </div>
+            <div class="field">
+                <label for="tipWhere">Var hände det?</label>
+                <input type="text" id="tipWhere" maxlength="200" placeholder="T.ex. skolgården, matsalen…">
+            </div>
+            <div class="field field-checkbox">
+                <label><input type="checkbox" id="tipAnonymous"> Vill du vara anonym?</label>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" id="tipSubmitBtn">Skicka tips</button>
         </form>
     </div>
 </div>

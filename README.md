@@ -61,6 +61,8 @@ Detta skapar:
 
 Det är säkert att köra filen flera gånger — den använder `if not exists` / `drop policy if exists` där det behövs.
 
+> **Nytt:** Efter att du kört `schema.sql`, kör även [`supabase/migration_v2.sql`](supabase/migration_v2.sql) i SQL Editor. Den lägger till stöd för Breaking News, Live-artiklar, Bildgalleri, Nyhetstips och statistikdashboard (se avsnittet [Nya funktioner (v2)](#nya-funktioner-v2) nedan).
+
 ---
 
 ## Steg 4 — Hämta API-nycklar
@@ -262,3 +264,20 @@ Kontrollera **Site URL** och **Redirect URLs** i Supabase → Authentication →
 
 **Artiklar visas inte på startsidan**
 Kontrollera att artikeln har status `published` (inte `draft`) och att `published_at` är satt — det görs automatiskt när du klickar **Publicera** i Artikelskaparen.
+
+---
+
+## Nya funktioner (v2)
+
+Kör `supabase/migration_v2.sql` (efter `schema.sql`) för att aktivera:
+
+- **Fler reaktioner** ❤️ 😂 😮 👍 👎 med räknare — redan aktivt, ingen migrering krävs.
+- **Fler kategorier**: Skolnytt, Matsedel, Händelser, Intervjuer (utöver de befintliga).
+- **Breaking News**: kryssa i "Markera som Breaking News" i Artikelskaparen. Artikeln får en 🔴-badge och visas överst i breaking-tickern.
+- **Live-artiklar**: kryssa i "Live-artikel" i Artikelskaparen (spara artikeln först) för att lägga till tidsstämplade uppdateringar som visas i en tidslinje på artikelsidan.
+- **Skicka in ett tips**: knappen "💡 Tipsa oss" i headern öppnar ett formulär (kräver inloggning). Tipsen hamnar i en redaktionsinkorg under "💡 Tips" i Artikelskaparen — de blir aldrig artiklar automatiskt.
+- **Bildgalleri**: `#/galleri` på publika sidan listar publicerade galleri. Skapa och fyll gallerier under "📸 Galleri" i Artikelskaparen.
+- **"Vad du missade"**: en banderoll på startsidan visar hur många nya artiklar som publicerats sedan ditt senaste besök (lagras i `localStorage`, ingen inloggning krävs).
+- **Statistikdashboard**: under "📈 Statistik" i Artikelskaparen — totala visningar/artiklar/användare/kommentarer, ett stapeldiagram över visningar per dag (senaste 14 dagarna) och mest lästa artiklar den senaste veckan.
+
+Alla nya databasobjekt (tabeller, RPC:er, RLS-policyer) beskrivs i kommentarer direkt i `migration_v2.sql`.

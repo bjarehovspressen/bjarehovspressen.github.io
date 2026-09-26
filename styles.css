@@ -1026,3 +1026,120 @@ p { margin: 0 0 1em; }
 .ai-panel-blocked.hidden { display: none; }
 .ai-blocked-emoji { font-size: 2.2rem; margin: 0; }
 .ai-panel-blocked p { margin: 0; color: var(--bp-ink-soft, inherit); max-width: 260px; }
+
+/* ============================================================================
+   NYA FUNKTIONER: breaking-badge, missad-banner, tips, galleri, live-artiklar
+   ============================================================================ */
+
+.breaking-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: var(--bp-red);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    padding: 3px 8px;
+    border-radius: 3px;
+    z-index: 2;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+}
+.img-wrap { position: relative; }
+#artBreakingBadge .breaking-badge { position: static; display: inline-block; margin: 6px 0; }
+
+.missed-banner {
+    background: var(--bp-paper-raised);
+    border: 1px solid var(--bp-line);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 16px 0 -4px;
+    font-size: 0.92rem;
+}
+.missed-banner a { color: var(--bp-sea); font-weight: 600; }
+.missed-banner.hidden { display: none; }
+
+.field-checkbox label { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 0.9rem; }
+.field textarea {
+    width: 100%;
+    min-height: 90px;
+    resize: vertical;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--bp-line);
+    background: var(--bp-paper);
+    color: var(--bp-ink);
+    font: inherit;
+}
+.field textarea:focus { outline: none; border-color: var(--bp-sea); }
+
+/* Bildgalleri */
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+}
+.gallery-photo {
+    margin: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bp-paper-raised);
+    border: 1px solid var(--bp-line);
+}
+.gallery-photo img { width: 100%; height: 200px; object-fit: cover; display: block; }
+.gallery-photo figcaption { padding: 8px 10px; font-size: 0.82rem; color: var(--bp-ink-faint); }
+
+/* Live-artiklar */
+.live-updates-block {
+    background: var(--bp-paper-raised);
+    border: 1px solid var(--bp-red);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin: 20px 0;
+}
+.live-updates-block h3 { margin: 0 0 12px; color: var(--bp-red); font-size: 1rem; }
+.live-update-item {
+    display: flex;
+    gap: 10px;
+    padding: 8px 0;
+    border-top: 1px dashed var(--bp-line);
+}
+.live-update-item:first-child { border-top: none; }
+.live-update-time { flex-shrink: 0; font-weight: 700; color: var(--bp-red); font-variant-numeric: tabular-nums; }
+
+/* Statistikdashboard (Artikelskaparen) */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.stats-card {
+    background: var(--bp-paper-raised);
+    border: 1px solid var(--bp-line);
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-align: center;
+}
+.stats-card .num { font-size: 1.6rem; font-weight: 800; display: block; }
+.stats-card .label { font-size: 0.78rem; color: var(--bp-ink-faint); }
+.stats-bar-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 140px;
+    padding: 10px 4px 0;
+    border-bottom: 1px solid var(--bp-line);
+}
+.stats-bar-chart .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+.stats-bar-chart .bar { width: 100%; background: var(--bp-sea); border-radius: 3px 3px 0 0; min-height: 2px; }
+.stats-bar-chart .bar-label { font-size: 0.65rem; color: var(--bp-ink-faint); margin-top: 4px; white-space: nowrap; }
+.tip-item {
+    background: var(--bp-paper-raised);
+    border: 1px solid var(--bp-line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+}
+.tip-item .tip-meta { font-size: 0.78rem; color: var(--bp-ink-faint); margin-top: 6px; display: flex; gap: 10px; align-items: center; }
+.tip-item.is-read { opacity: 0.6; }

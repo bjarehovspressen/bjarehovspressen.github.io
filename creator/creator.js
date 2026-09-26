@@ -26,7 +26,8 @@
 
     const CATEGORY_LABELS = {
         lokalt: "Lokalt", sverige: "Sverige", varlden: "Världen", sport: "Sport",
-        kultur: "Kultur", tech: "Tech", ekonomi: "Ekonomi", opinion: "Opinion", bus: "Bus"
+        kultur: "Kultur", tech: "Tech", ekonomi: "Ekonomi", opinion: "Opinion", bus: "Bus",
+        skolnytt: "Skolnytt", matsedel: "Matsedel", handelser: "Händelser", intervjuer: "Intervjuer"
     };
     const CATEGORY_ORDER = Object.keys(CATEGORY_LABELS);
 
@@ -247,6 +248,25 @@
             if (showingList) { showEditorView(); }
             else { showListView(); }
         });
+        $("#tipsInboxBtn").addEventListener("click", () => {
+            const showing = !$("#tipsShell").classList.contains("hidden");
+            if (showing) { showEditorView(); } else { showTipsView(); }
+        });
+        $("#galleryManagerBtn").addEventListener("click", () => {
+            const showing = !$("#galleryShell").classList.contains("hidden");
+            if (showing) { showEditorView(); } else { showGalleryManagerView(); }
+        });
+        $("#statsBtn").addEventListener("click", () => {
+            const showing = !$("#statsShell").classList.contains("hidden");
+            if (showing) { showEditorView(); } else { showStatsView(); }
+        });
+        $("#isBreakingInput").addEventListener("change", markDirty);
+        $("#isLiveInput").addEventListener("change", () => {
+            $("#liveComposerPanel").classList.toggle("hidden", !$("#isLiveInput").checked);
+            markDirty();
+        });
+        $("#liveUpdateForm").addEventListener("submit", addLiveUpdate);
+        $("#newGalleryForm").addEventListener("submit", createGallery);
         if (state.profile.role === "admin") {
             $("#adminUsersBtn").addEventListener("click", () => {
                 const showingAdmin = !$("#adminShell").classList.contains("hidden");
@@ -263,28 +283,38 @@
         });
     }
 
+    const ALL_SHELLS = ["editorShell", "listShell", "adminShell", "tipsShell", "galleryShell", "statsShell"];
+    function showShell(id) {
+        ALL_SHELLS.forEach(s => $("#" + s).classList.toggle("hidden", s !== id));
+    }
     function showEditorView() {
-        $("#listShell").classList.add("hidden");
-        $("#adminShell").classList.add("hidden");
-        $("#editorShell").classList.remove("hidden");
+        showShell("editorShell");
         $("#myArticlesBtn").textContent = "Mina artiklar";
         if ($("#adminUsersBtn")) $("#adminUsersBtn").textContent = "Användare";
     }
     function showListView() {
-        $("#editorShell").classList.add("hidden");
-        $("#adminShell").classList.add("hidden");
-        $("#listShell").classList.remove("hidden");
+        showShell("listShell");
         $("#myArticlesBtn").textContent = "Tillbaka till editorn";
         if ($("#adminUsersBtn")) $("#adminUsersBtn").textContent = "Användare";
         loadMyArticles();
     }
     function showAdminView() {
-        $("#editorShell").classList.add("hidden");
-        $("#listShell").classList.add("hidden");
-        $("#adminShell").classList.remove("hidden");
+        showShell("adminShell");
         $("#myArticlesBtn").textContent = "Mina artiklar";
         $("#adminUsersBtn").textContent = "Tillbaka till editorn";
         loadUsers();
+    }
+    function showTipsView() {
+        showShell("tipsShell");
+        loadTipsInbox();
+    }
+    function showGalleryManagerView() {
+        showShell("galleryShell");
+        loadGalleryManager();
+    }
+    function showStatsView() {
+        showShell("statsShell");
+        loadStatsDashboard();
     }
 
     // ------------------------------------------------------------------
@@ -342,7 +372,9 @@
             category: state.category,
             image_url: state.coverUrl,
             content_html: state.quill ? state.quill.root.innerHTML : "",
-            publish_at: $("#publishAtInput").value || null
+            publish_at: $("#publishAtInput").value || null,
+            is_breaking: $("#isBreakingInput").checked,
+            is_live: $("#isLiveInput").checked
         };
     }
 
@@ -358,6 +390,10 @@
         $("#publishAtInput").value = "";
         $("#coverPreviewWrap").classList.add("hidden");
         $("#coverDrop").classList.remove("hidden");
+        $("#isBreakingInput").checked = false;
+        $("#isLiveInput").checked = false;
+        $("#liveComposerPanel").classList.add("hidden");
+        $("#liveUpdateList").innerHTML = "";
         if (state.quill) state.quill.setContents([]);
         $all(".cat-radio").forEach(x => x.classList.toggle("checked", x.dataset.cat === "lokalt"));
         $all('input[name="cat"]').forEach(r => r.checked = r.value === "lokalt");
@@ -462,7 +498,9 @@
             image_url: d.image_url,
             content_html: d.content_html,
             status: status,
-            author_id: state.session.user.id
+            author_id: state.session.user.id,
+            is_breaking: d.is_breaking,
+            is_live: d.is_live
         };
         if (status === "published") {
             payload.published_at = d.publish_at ? new Date(d.publish_at).toISOString() : new Date().toISOString();
@@ -529,6 +567,10 @@
         if (state.quill) state.quill.root.innerHTML = data.content_html || "";
         $all(".cat-radio").forEach(x => x.classList.toggle("checked", x.dataset.cat === data.category));
         $all('input[name="cat"]').forEach(r => r.checked = r.value === data.category);
+        $("#isBreakingInput").checked = !!data.is_breaking;
+        $("#isLiveInput").checked = !!data.is_live;
+        $("#liveComposerPanel").classList.toggle("hidden", !data.is_live);
+        if (data.is_live) loadLiveUpdatesIntoEditor(data.id);
 
         if (data.image_url) {
             $("#coverPreviewImg").src = data.image_url;
@@ -698,6 +740,201 @@
         }
         $("#pvBody").innerHTML = d.content_html;
         $("#previewModal").classList.add("open");
+    }
+
+    // ------------------------------------------------------------------
+    // LIVE-UPPDATERINGAR
+    // ------------------------------------------------------------------
+    async function loadLiveUpdatesIntoEditor(articleId) {
+        const { data, error } = await supabase.from("live_updates")
+            .select("id, body, occurred_at").eq("article_id", articleId).order("occurred_at", { ascending: false });
+        if (error) { console.error(error); return; }
+        renderLiveUpdateList(data || []);
+    }
+
+    function renderLiveUpdateList(items) {
+        const el = $("#liveUpdateList");
+        if (!items.length) { el.innerHTML = `<p class="field-hint">Inga uppdateringar ännu.</p>`; return; }
+        el.innerHTML = items.map(u => `
+            <div class="tip-item" data-id="${u.id}">
+                <strong>${new Date(u.occurred_at).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}</strong>
+                — ${escapeHtml(u.body)}
+                <button type="button" class="btn btn-ghost btn-sm remove-live-update" data-id="${u.id}" style="float:right;">Ta bort</button>
+            </div>`).join("");
+        $all(".remove-live-update", el).forEach(btn => btn.addEventListener("click", async () => {
+            const { error } = await supabase.from("live_updates").delete().eq("id", btn.dataset.id);
+            if (error) { toast("Kunde inte ta bort uppdateringen.", "error"); return; }
+            loadLiveUpdatesIntoEditor(state.currentId);
+        }));
+    }
+
+    async function addLiveUpdate(e) {
+        e.preventDefault();
+        if (!state.currentId) { toast("Spara artikeln innan du lägger till en live-uppdatering.", "error"); return; }
+        const body = $("#liveUpdateInput").value.trim();
+        if (!body) return;
+        const btn = $("#liveUpdateSubmitBtn");
+        btn.disabled = true;
+        const { error } = await supabase.from("live_updates").insert({
+            article_id: state.currentId, body, created_by: state.session.user.id
+        });
+        btn.disabled = false;
+        if (error) { toast("Kunde inte spara uppdateringen: " + error.message, "error"); return; }
+        $("#liveUpdateInput").value = "";
+        toast("Live-uppdatering tillagd.", "success");
+        loadLiveUpdatesIntoEditor(state.currentId);
+    }
+
+    // ------------------------------------------------------------------
+    // NYHETSTIPS-INKORG
+    // ------------------------------------------------------------------
+    async function loadTipsInbox() {
+        const el = $("#tipsList");
+        el.innerHTML = "<p>Laddar…</p>";
+        const { data, error } = await supabase.from("news_tips")
+            .select("id, what, where_text, anonymous, status, created_at, reporter_id, profiles!news_tips_reporter_id_fkey(display_name)")
+            .order("created_at", { ascending: false });
+        if (error) { el.innerHTML = `<p class="field-hint">Kunde inte hämta tips: ${escapeHtml(error.message)}</p>`; return; }
+        if (!data || !data.length) { el.innerHTML = "<p>Inga tips inskickade ännu.</p>"; return; }
+        el.innerHTML = data.map(t => `
+            <div class="tip-item ${t.status !== "new" ? "is-read" : ""}" data-id="${t.id}">
+                <div>${escapeHtml(t.what)}</div>
+                ${t.where_text ? `<div style="font-size:0.85rem;color:var(--bp-ink-faint);">📍 ${escapeHtml(t.where_text)}</div>` : ""}
+                <div class="tip-meta">
+                    <span>${new Date(t.created_at).toLocaleString("sv-SE")}</span>
+                    <span>${t.anonymous ? "Anonymt tips" : "Från: " + escapeHtml(t.profiles ? t.profiles.display_name : "Okänd")}</span>
+                    <select class="tip-status-select" data-id="${t.id}">
+                        <option value="new" ${t.status === "new" ? "selected" : ""}>Nytt</option>
+                        <option value="read" ${t.status === "read" ? "selected" : ""}>Läst</option>
+                        <option value="archived" ${t.status === "archived" ? "selected" : ""}>Arkiverat</option>
+                    </select>
+                </div>
+            </div>`).join("");
+        $all(".tip-status-select", el).forEach(sel => sel.addEventListener("change", async () => {
+            const { error } = await supabase.from("news_tips").update({ status: sel.value }).eq("id", sel.dataset.id);
+            if (error) { toast("Kunde inte uppdatera status.", "error"); return; }
+            sel.closest(".tip-item").classList.toggle("is-read", sel.value !== "new");
+        }));
+    }
+
+    // ------------------------------------------------------------------
+    // BILDGALLERI-HANTERING
+    // ------------------------------------------------------------------
+    async function createGallery(e) {
+        e.preventDefault();
+        const title = $("#galleryTitleInput").value.trim();
+        const description = $("#galleryDescInput").value.trim();
+        if (!title) return;
+        const { error } = await supabase.from("galleries").insert({
+            title, description, author_id: state.session.user.id, status: "published"
+        });
+        if (error) { toast("Kunde inte skapa galleriet: " + error.message, "error"); return; }
+        $("#galleryTitleInput").value = "";
+        $("#galleryDescInput").value = "";
+        toast("Galleri skapat!", "success");
+        loadGalleryManager();
+    }
+
+    async function loadGalleryManager() {
+        const el = $("#galleryManagerList");
+        el.innerHTML = "<p>Laddar…</p>";
+        const { data, error } = await supabase.from("galleries")
+            .select("id, title, description, cover_image_url").order("created_at", { ascending: false });
+        if (error) { el.innerHTML = `<p class="field-hint">Fel: ${escapeHtml(error.message)}</p>`; return; }
+        if (!data || !data.length) { el.innerHTML = "<p>Inga gallerier ännu. Skapa ett ovan.</p>"; return; }
+
+        el.innerHTML = data.map(g => `
+            <div class="tip-item" data-gallery="${g.id}">
+                <strong>📸 ${escapeHtml(g.title)}</strong>
+                <div style="margin:8px 0;" id="galleryPhotos-${g.id}"></div>
+                <label class="btn btn-outline btn-sm" style="cursor:pointer;">
+                    + Ladda upp bild
+                    <input type="file" accept="image/*" class="hidden gallery-upload-input" data-gallery="${g.id}">
+                </label>
+                <button type="button" class="btn btn-ghost btn-sm delete-gallery-btn" data-gallery="${g.id}">Ta bort galleri</button>
+            </div>`).join("");
+
+        data.forEach(g => loadGalleryPhotos(g.id));
+
+        $all(".gallery-upload-input", el).forEach(input => input.addEventListener("change", async () => {
+            const file = input.files[0];
+            if (!file) return;
+            const galleryId = input.dataset.gallery;
+            const url = await uploadImage(file, "galleries");
+            if (!url) return;
+            const { data: existing } = await supabase.from("gallery_images").select("position").eq("gallery_id", galleryId).order("position", { ascending: false }).limit(1);
+            const nextPos = existing && existing.length ? existing[0].position + 1 : 0;
+            const { error } = await supabase.from("gallery_images").insert({ gallery_id: galleryId, image_url: url, position: nextPos });
+            if (error) { toast("Kunde inte lägga till bilden: " + error.message, "error"); return; }
+            // Sätt som omslagsbild om galleriet saknar en.
+            await supabase.from("galleries").update({ cover_image_url: url }).eq("id", galleryId).is("cover_image_url", null);
+            toast("Bild uppladdad!", "success");
+            loadGalleryPhotos(galleryId);
+        }));
+
+        $all(".delete-gallery-btn", el).forEach(btn => btn.addEventListener("click", async () => {
+            if (!confirm("Ta bort hela galleriet och alla dess bilder?")) return;
+            const { error } = await supabase.from("galleries").delete().eq("id", btn.dataset.gallery);
+            if (error) { toast("Kunde inte ta bort galleriet.", "error"); return; }
+            loadGalleryManager();
+        }));
+    }
+
+    async function loadGalleryPhotos(galleryId) {
+        const el = $("#galleryPhotos-" + galleryId);
+        if (!el) return;
+        const { data } = await supabase.from("gallery_images").select("id, image_url").eq("gallery_id", galleryId).order("position");
+        el.innerHTML = (data || []).map(img => `
+            <span style="display:inline-block;position:relative;margin:0 6px 6px 0;">
+                <img src="${escapeHtml(img.image_url)}" style="width:70px;height:70px;object-fit:cover;border-radius:6px;">
+                <button type="button" class="remove-gallery-photo" data-id="${img.id}" title="Ta bort" style="position:absolute;top:-6px;right:-6px;background:var(--bp-red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;">✕</button>
+            </span>`).join("") || `<span class="field-hint">Inga bilder än.</span>`;
+        $all(".remove-gallery-photo", el).forEach(btn => btn.addEventListener("click", async () => {
+            await supabase.from("gallery_images").delete().eq("id", btn.dataset.id);
+            loadGalleryPhotos(galleryId);
+        }));
+    }
+
+    // ------------------------------------------------------------------
+    // STATISTIKDASHBOARD
+    // ------------------------------------------------------------------
+    async function loadStatsDashboard() {
+        $("#statsSummaryGrid").innerHTML = "<p>Laddar…</p>";
+        $("#statsBarChart").innerHTML = "";
+        $("#statsTopList").innerHTML = "";
+
+        const { data: summaryRows, error: sErr } = await supabase.rpc("stats_summary");
+        if (sErr) {
+            $("#statsSummaryGrid").innerHTML = `<p class="field-hint">Kunde inte hämta statistik: ${escapeHtml(sErr.message)}. Har migration_v2.sql körts i Supabase?</p>`;
+        } else {
+            const s = (summaryRows && summaryRows[0]) || { total_views: 0, total_articles: 0, total_users: 0, total_comments: 0 };
+            $("#statsSummaryGrid").innerHTML = `
+                <div class="stats-card"><span class="num">👁️ ${s.total_views || 0}</span><span class="label">Visningar</span></div>
+                <div class="stats-card"><span class="num">📰 ${s.total_articles || 0}</span><span class="label">Artiklar</span></div>
+                <div class="stats-card"><span class="num">👤 ${s.total_users || 0}</span><span class="label">Användare</span></div>
+                <div class="stats-card"><span class="num">💬 ${s.total_comments || 0}</span><span class="label">Kommentarer</span></div>`;
+        }
+
+        const { data: dayRows, error: dErr } = await supabase.rpc("stats_views_per_day", { p_days: 14 });
+        if (!dErr && dayRows && dayRows.length) {
+            const max = Math.max(1, ...dayRows.map(r => r.views));
+            $("#statsBarChart").innerHTML = dayRows.map(r => `
+                <div class="bar-col">
+                    <div class="bar" style="height:${Math.round((r.views / max) * 100)}%" title="${r.views} visningar"></div>
+                    <div class="bar-label">${new Date(r.day).toLocaleDateString("sv-SE", { day: "numeric", month: "short" })}</div>
+                </div>`).join("");
+        } else {
+            $("#statsBarChart").innerHTML = `<p class="field-hint">Ingen visningsdata ännu.</p>`;
+        }
+
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: topArticles } = await supabase.from("articles")
+            .select("title, slug, views, published_at")
+            .eq("status", "published").gt("published_at", weekAgo)
+            .order("views", { ascending: false }).limit(5);
+        $("#statsTopList").innerHTML = (topArticles && topArticles.length)
+            ? topArticles.map((a, i) => `<div class="tip-item">${i + 1}. <strong>${escapeHtml(a.title)}</strong> — ${a.views || 0} visningar</div>`).join("")
+            : "<p>Inga artiklar publicerade den senaste veckan.</p>";
     }
 
     boot();

@@ -18,6 +18,9 @@
     <div class="cr-topbar-actions" id="topbarActions">
         <span class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">Ej ändrat</span></span>
         <button class="btn btn-ghost btn-sm" id="myArticlesBtn">Mina artiklar</button>
+        <button class="btn btn-ghost btn-sm" id="tipsInboxBtn">💡 Tips</button>
+        <button class="btn btn-ghost btn-sm" id="galleryManagerBtn">📸 Galleri</button>
+        <button class="btn btn-ghost btn-sm" id="statsBtn">📈 Statistik</button>
         <button class="btn btn-ghost btn-sm hidden" id="adminUsersBtn">Användare</button>
         <button class="btn btn-outline btn-sm" id="newArticleBtn">Ny artikel</button>
         <button class="btn btn-outline btn-sm" id="previewBtn">Förhandsgranska</button>
@@ -115,6 +118,24 @@
         <div class="panel">
             <h3>Status</h3>
             <div class="field-hint" id="articleStatusLine">Nytt utkast — inte sparat än.</div>
+            <div class="field field-checkbox" style="margin-top:12px;">
+                <label><input type="checkbox" id="isBreakingInput"> 🔴 Markera som Breaking News</label>
+            </div>
+            <div class="field field-checkbox">
+                <label><input type="checkbox" id="isLiveInput"> 📰 Live-artikel (tidsstämplade uppdateringar)</label>
+            </div>
+        </div>
+
+        <div class="panel hidden" id="liveComposerPanel">
+            <h3>🔴 Live-uppdateringar</h3>
+            <div class="field-hint" style="margin-bottom:10px;">Spara artikeln (utkast eller publicerad) innan du lägger till uppdateringar.</div>
+            <form id="liveUpdateForm">
+                <div class="field">
+                    <textarea id="liveUpdateInput" maxlength="500" placeholder="T.ex. 14:17 – Bjärehov gör mål!" rows="2"></textarea>
+                </div>
+                <button type="submit" class="btn btn-outline btn-sm" id="liveUpdateSubmitBtn">Lägg till uppdatering</button>
+            </form>
+            <div id="liveUpdateList" style="margin-top:12px;"></div>
         </div>
     </div>
 </div>
@@ -124,6 +145,45 @@
     <div class="panel">
         <h3 id="myArticlesHeading">Mina artiklar</h3>
         <div id="myArticlesList"></div>
+    </div>
+</div>
+
+<!-- ============================== VY: TIPS-INKORG ============================== -->
+<div class="cr-shell hidden" id="tipsShell" style="grid-template-columns:1fr;">
+    <div class="panel">
+        <h3>💡 Nyhetstips</h3>
+        <div id="tipsList"></div>
+    </div>
+</div>
+
+<!-- ============================== VY: BILDGALLERI-HANTERING ============================== -->
+<div class="cr-shell hidden" id="galleryShell" style="grid-template-columns:1fr;">
+    <div class="panel">
+        <h3>📸 Bildgalleri</h3>
+        <form id="newGalleryForm" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px;">
+            <div class="field" style="flex:1;min-width:200px;margin-bottom:0;">
+                <label for="galleryTitleInput">Titel</label>
+                <input type="text" id="galleryTitleInput" placeholder="T.ex. Bjärehovs idrottsdag 2026" maxlength="200" required>
+            </div>
+            <div class="field" style="flex:2;min-width:220px;margin-bottom:0;">
+                <label for="galleryDescInput">Beskrivning</label>
+                <input type="text" id="galleryDescInput" placeholder="Kort beskrivning (valfritt)" maxlength="300">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Skapa galleri</button>
+        </form>
+        <div id="galleryManagerList"></div>
+    </div>
+</div>
+
+<!-- ============================== VY: STATISTIKDASHBOARD ============================== -->
+<div class="cr-shell hidden" id="statsShell" style="grid-template-columns:1fr;">
+    <div class="panel">
+        <h3>📈 Statistik</h3>
+        <div class="stats-grid" id="statsSummaryGrid"></div>
+        <h4 style="margin:20px 0 10px;">Visningar per dag (senaste 14 dagarna)</h4>
+        <div class="stats-bar-chart" id="statsBarChart"></div>
+        <h4 style="margin:20px 0 10px;">Mest lästa denna vecka</h4>
+        <div id="statsTopList"></div>
     </div>
 </div>
 

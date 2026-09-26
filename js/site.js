@@ -29,7 +29,8 @@
 
     const CATEGORY_LABELS = {
         lokalt: "Lokalt", sverige: "Sverige", varlden: "Världen", sport: "Sport",
-        kultur: "Kultur", tech: "Tech", ekonomi: "Ekonomi", opinion: "Opinion", bus: "Bus"
+        kultur: "Kultur", tech: "Tech", ekonomi: "Ekonomi", opinion: "Opinion", bus: "Bus",
+        skolnytt: "Skolnytt", matsedel: "Matsedel", handelser: "Händelser", intervjuer: "Intervjuer"
     };
     const CATEGORY_ORDER = Object.keys(CATEGORY_LABELS);
 
@@ -257,7 +258,7 @@
     // ------------------------------------------------------------------
     // 6. DATA LAYER
     // ------------------------------------------------------------------
-    const ARTICLE_FIELDS = "id, title, slug, excerpt, category, image_url, status, published_at, updated_at, views, like_count, dislike_count, love_count, laugh_count, wow_count, author_id, profiles!articles_author_id_fkey(display_name)";
+    const ARTICLE_FIELDS = "id, title, slug, excerpt, category, image_url, status, published_at, updated_at, views, like_count, dislike_count, love_count, laugh_count, wow_count, is_breaking, is_live, author_id, profiles!articles_author_id_fkey(display_name)";
 
     async function fetchPublished({ category, limit = 9, offset = 0, order = "published_at" } = {}) {
         if (!supabase) return { data: [], count: 0 };
@@ -328,12 +329,16 @@
             `<span>${r.emoji} ${r.count}</span>`).join("")}</div>`;
     }
 
+    function breakingBadgeHtml(a) {
+        return a && a.is_breaking ? `<span class="breaking-badge">🔴 BREAKING</span>` : "";
+    }
+
     function articleCardHtml(a) {
         const img = a.image_url || placeholderImg(a.slug);
         const authorName = a.profiles ? a.profiles.display_name : "";
         return `
         <a class="article-card" href="#/artikel/${a.slug}" data-link>
-            <div class="img-wrap"><img src="${escapeHtml(img)}" alt="" loading="lazy"></div>
+            <div class="img-wrap"><img src="${escapeHtml(img)}" alt="" loading="lazy">${breakingBadgeHtml(a)}</div>
             ${categoryTag(a.category)}
             <h3>${escapeHtml(a.title)}</h3>
             <p class="excerpt">${escapeHtml(a.excerpt || "")}</p>
@@ -523,11 +528,22 @@
     // 11. BREAKING NEWS BAR
     // ------------------------------------------------------------------
     async function renderBreaking() {
-        const { data } = await fetchPublished({ limit: 6 });
+        if (!supabase) return;
+        let { data } = await supabase.from("articles").select(ARTICLE_FIELDS)
+            .eq("status", "published").eq("is_breaking", true)
+            .order("published_at", { ascending: false }).limit(6);
+        let isBreaking = true;
+        if (!data || !data.length) {
+            isBreaking = false;
+            const res = await fetchPublished({ limit: 6 });
+            data = res.data;
+        }
         if (!data || !data.length) return;
         $("#breakingBar").hidden = false;
+        $(".breaking-tag", $("#breakingBar")).textContent = isBreaking ? "🔴 BREAKING" : "Senaste";
+        $("#breakingBar").classList.toggle("is-live-breaking", isBreaking);
         const list = $("#breakingList");
-        const items = data.map(a => `<li><a href="#/artikel/${a.slug}" data-link>${escapeHtml(a.title)}</a></li>`).join("");
+        const items = data.map(a => `<li><a href="#/artikel/${a.slug}" data-link>${a.is_breaking ? "🔴 " : ""}${escapeHtml(a.title)}</a></li>`).join("");
         list.innerHTML = items + items; // dubblera för sömlös scroll-loop
         bindLinks(list);
     }
@@ -549,6 +565,7 @@
         const newCatSpan = catEl.firstElementChild;
         newCatSpan.id = "artCat";
         $("#artCat").replaceWith(newCatSpan);
+        $("#artBreakingBadge").innerHTML = breakingBadgeHtml(article);
         $("#artTitle").textContent = article.title;
         $("#artExcerpt").textContent = article.excerpt || "";
         $("#artAuthor").textContent = article.profiles ? article.profiles.display_name : "Bjärehovs Pressen";
@@ -601,6 +618,43 @@
         loadComments(article.id);
         renderCommentAuthState();
         loadRelated(article);
+        renderLiveUpdates(article);
+    }
+
+    // ------------------------------------------------------------------
+    // 12b. LIVE-ARTIKLAR (tidsstämplade uppdateringar)
+    // ------------------------------------------------------------------
+    let liveUpdatesTimer = null;
+    async function renderLiveUpdates(article) {
+        const wrap = $("#liveUpdatesBlock");
+        if (liveUpdatesTimer) { clearInterval(liveUpdatesTimer); liveUpdatesTimer = null; }
+        if (!article.is_live || !supabase) { wrap.classList.add("hidden"); return; }
+        wrap.classList.remove("hidden");
+
+        async function load() {
+            const { data } = await supabase.from("live_updates")
+                .select("id, body, occurred_at")
+                .eq("article_id", article.id)
+                .order("occurred_at", { ascending: false });
+            const list = $("#liveUpdatesList");
+            if (!data || !data.length) {
+                list.innerHTML = `<p style="color:var(--bp-ink-faint);">Inga uppdateringar ännu.</p>`;
+                return;
+            }
+            list.innerHTML = data.map(u => `
+                <div class="live-update-item">
+                    <span class="live-update-time">${formatTime(u.occurred_at)}</span>
+                    <span class="live-update-body">${escapeHtml(u.body)}</span>
+                </div>`).join("");
+        }
+        await load();
+        // Poll för nya uppdateringar var 20:e sekund medan sidan är öppen.
+        liveUpdatesTimer = setInterval(load, 20000);
+    }
+
+    function formatTime(iso) {
+        const d = new Date(iso);
+        return d.toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
     }
 
     function renderReactionState() {
@@ -729,10 +783,109 @@
     }
 
     // ------------------------------------------------------------------
+    // 12c. "VAD DU MISSADE" — nya artiklar sedan senaste besöket (localStorage)
+    // ------------------------------------------------------------------
+    async function renderMissedBanner() {
+        if (!supabase) return;
+        const key = "bp_last_visit";
+        const last = localStorage.getItem(key);
+        const now = new Date().toISOString();
+        const banner = $("#missedBanner");
+        if (last) {
+            const { count } = await supabase.from("articles").select("id", { count: "exact", head: true })
+                .eq("status", "published").gt("published_at", last);
+            if (count && count > 0) {
+                banner.classList.remove("hidden");
+                banner.innerHTML = `📰 <strong>${count}</strong> ${count === 1 ? "ny artikel" : "nya artiklar"} sedan ditt senaste besök. <a href="#/senaste" data-link>Visa dem</a>`;
+                bindLinks(banner);
+            } else {
+                banner.classList.add("hidden");
+            }
+        }
+        localStorage.setItem(key, now);
+    }
+
+    // ------------------------------------------------------------------
+    // 12d. NYHETSTIPS ("Skicka in ett tips")
+    // ------------------------------------------------------------------
+    const tipModal = $("#tipModal");
+    function openTipModal() {
+        if (!supabase) { toast("Konfigurera Supabase i js/config.js först.", "error"); return; }
+        if (!state.session) { toast("Logga in för att skicka in ett tips.", "error"); openAuth(); return; }
+        tipModal.classList.add("open");
+    }
+    function closeTipModal() { tipModal.classList.remove("open"); }
+    $("#tipOpenBtn") && $("#tipOpenBtn").addEventListener("click", openTipModal);
+    $("#tipCloseBtn") && $("#tipCloseBtn").addEventListener("click", closeTipModal);
+    tipModal && tipModal.addEventListener("click", (e) => { if (e.target === tipModal) closeTipModal(); });
+
+    $("#tipFormEl") && $("#tipFormEl").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const what = $("#tipWhat").value.trim();
+        const whereText = $("#tipWhere").value.trim();
+        const anonymous = $("#tipAnonymous").checked;
+        if (!what) return;
+        const btn = $("#tipSubmitBtn");
+        btn.disabled = true;
+        const { error } = await supabase.from("news_tips").insert({
+            what, where_text: whereText, anonymous,
+            reporter_id: anonymous ? null : state.session.user.id
+        });
+        btn.disabled = false;
+        if (error) { toast("Kunde inte skicka in tipset.", "error"); console.error(error); return; }
+        toast("Tack! Ditt tips har skickats till redaktionen.", "success");
+        $("#tipFormEl").reset();
+        closeTipModal();
+    });
+
+    // ------------------------------------------------------------------
+    // 12e. BILDGALLERI
+    // ------------------------------------------------------------------
+    async function renderGalleryList() {
+        showOnly("viewGallery");
+        $("#galleryListView").classList.remove("hidden");
+        $("#galleryDetailView").classList.add("hidden");
+        $("#galleryListGrid").innerHTML = skeletonCards(6);
+        const { data, error } = await supabase.from("galleries")
+            .select("id, title, description, cover_image_url, created_at")
+            .eq("status", "published").order("created_at", { ascending: false });
+        if (error) { console.error(error); return; }
+        const el = $("#galleryListGrid");
+        if (!data || !data.length) { el.innerHTML = emptyState("Inga bildgallerier ännu", "Redaktionen har inte publicerat några bildgallerier ännu."); return; }
+        el.innerHTML = data.map(g => `
+            <a class="article-card" href="#/galleri/${g.id}" data-link>
+                <div class="img-wrap"><img src="${escapeHtml(g.cover_image_url || placeholderImg(g.id))}" alt="" loading="lazy"></div>
+                <h3>📸 ${escapeHtml(g.title)}</h3>
+                <p class="excerpt">${escapeHtml(g.description || "")}</p>
+            </a>`).join("");
+        bindLinks(el);
+    }
+
+    async function renderGalleryDetail(id) {
+        showOnly("viewGallery");
+        $("#galleryListView").classList.add("hidden");
+        $("#galleryDetailView").classList.remove("hidden");
+        $("#galleryDetailGrid").innerHTML = skeletonCards(6);
+        const { data: gallery } = await supabase.from("galleries")
+            .select("id, title, description").eq("id", id).maybeSingle();
+        if (!gallery) { showOnly("viewNotFound"); return; }
+        $("#galleryDetailTitle").textContent = "📸 " + gallery.title;
+        $("#galleryDetailDesc").textContent = gallery.description || "";
+        const { data: images } = await supabase.from("gallery_images")
+            .select("id, image_url, caption").eq("gallery_id", id).order("position", { ascending: true });
+        const el = $("#galleryDetailGrid");
+        el.innerHTML = (images || []).map(img => `
+            <figure class="gallery-photo">
+                <img src="${escapeHtml(img.image_url)}" alt="${escapeHtml(img.caption || "")}" loading="lazy">
+                ${img.caption ? `<figcaption>${escapeHtml(img.caption)}</figcaption>` : ""}
+            </figure>`).join("") || "<p>Inga bilder i det här galleriet ännu.</p>";
+    }
+
+    // ------------------------------------------------------------------
     // 13. ROUTER (hash-baserad — funkar utan serverkonfiguration på GitHub Pages)
     // ------------------------------------------------------------------
     function showOnly(id) {
-        ["viewHome", "viewCategory", "viewSearch", "viewArticle", "viewNotFound"].forEach(v => {
+        ["viewHome", "viewCategory", "viewSearch", "viewArticle", "viewGallery", "viewNotFound"].forEach(v => {
             $("#" + v).classList.toggle("hidden", v !== id);
         });
     }
@@ -772,6 +925,13 @@
             highlightActiveNav("");
             const term = decodeURIComponent(hash.split("/")[2] || "");
             await renderSearchPage(term);
+        } else if (hash === "#/galleri") {
+            highlightActiveNav("galleri");
+            await renderGalleryList();
+        } else if (hash.startsWith("#/galleri/")) {
+            highlightActiveNav("galleri");
+            const id = decodeURIComponent(hash.split("/")[2] || "");
+            await renderGalleryDetail(id);
         } else {
             showOnly("viewNotFound");
         }
@@ -794,6 +954,7 @@
     (async function init() {
         await refreshSession();
         await renderBreaking();
+        await renderMissedBanner();
         await route();
     })();
 
