@@ -33,6 +33,15 @@
     };
     const CATEGORY_ORDER = Object.keys(CATEGORY_LABELS);
 
+    // Reaktionstyper: nyckel = kolumn-/RPC-värde, emoji = visas i UI.
+    const REACTIONS = [
+        { key: "love", emoji: "❤️", field: "love_count" },
+        { key: "laugh", emoji: "😂", field: "laugh_count" },
+        { key: "wow", emoji: "😮", field: "wow_count" },
+        { key: "like", emoji: "👍", field: "like_count" },
+        { key: "dislike", emoji: "👎", field: "dislike_count" }
+    ];
+
     // ------------------------------------------------------------------
     // 1. STATE
     // ------------------------------------------------------------------
@@ -248,7 +257,7 @@
     // ------------------------------------------------------------------
     // 6. DATA LAYER
     // ------------------------------------------------------------------
-    const ARTICLE_FIELDS = "id, title, slug, excerpt, category, image_url, status, published_at, updated_at, views, like_count, dislike_count, author_id, profiles!articles_author_id_fkey(display_name)";
+    const ARTICLE_FIELDS = "id, title, slug, excerpt, category, image_url, status, published_at, updated_at, views, like_count, dislike_count, love_count, laugh_count, wow_count, author_id, profiles!articles_author_id_fkey(display_name)";
 
     async function fetchPublished({ category, limit = 9, offset = 0, order = "published_at" } = {}) {
         if (!supabase) return { data: [], count: 0 };
@@ -308,6 +317,17 @@
         return `<span class="cat-tag" style="--cat-color:var(--cat-${cat})">${CATEGORY_LABELS[cat] || cat}</span>`;
     }
 
+    function cardReactionsHtml(a) {
+        const withCounts = REACTIONS
+            .map(r => ({ emoji: r.emoji, count: a[r.field] || 0 }))
+            .filter(r => r.count > 0)
+            .sort((x, y) => y.count - x.count)
+            .slice(0, 3);
+        if (!withCounts.length) return "";
+        return `<div class="card-reactions">${withCounts.map(r =>
+            `<span>${r.emoji} ${r.count}</span>`).join("")}</div>`;
+    }
+
     function articleCardHtml(a) {
         const img = a.image_url || placeholderImg(a.slug);
         const authorName = a.profiles ? a.profiles.display_name : "";
@@ -319,8 +339,7 @@
             <p class="excerpt">${escapeHtml(a.excerpt || "")}</p>
             <div class="card-stats">
                 <span title="Visningar">👁 ${a.views || 0}</span>
-                <span title="Gillar">👍 ${a.like_count || 0}</span>
-                <span title="Ogillar">👎 ${a.dislike_count || 0}</span>
+                ${cardReactionsHtml(a)}
             </div>
         </a>`;
     }
@@ -547,8 +566,10 @@
 
         $("#artBody").innerHTML = article.content_html || "";
 
-        $("#likeCount").textContent = article.like_count || 0;
-        $("#dislikeCount").textContent = article.dislike_count || 0;
+        REACTIONS.forEach(r => {
+            const el = document.getElementById(r.key + "Count");
+            if (el) el.textContent = article[r.field] || 0;
+        });
         $("#viewsHint").textContent = (article.views || 0) + " visningar";
 
         state.myReaction = null;
@@ -583,9 +604,9 @@
     }
 
     function renderReactionState() {
-        const likeBtn = $("#likeBtn"), dislikeBtn = $("#dislikeBtn");
-        likeBtn.classList.toggle("active", state.myReaction === "like");
-        dislikeBtn.classList.toggle("active", state.myReaction === "dislike");
+        $all("#reactionBar .reaction-btn").forEach(btn => {
+            btn.classList.toggle("active", btn.dataset.reaction === state.myReaction);
+        });
     }
 
     async function loadMyReaction(articleId) {
@@ -596,6 +617,13 @@
         renderReactionState();
     }
 
+    function bumpCount(reactionKey, delta) {
+        if (!reactionKey) return;
+        const el = document.getElementById(reactionKey + "Count");
+        if (!el) return;
+        el.textContent = Math.max(0, (parseInt(el.textContent) || 0) + delta);
+    }
+
     async function setReaction(reaction) {
         if (!supabase || !state.session) { openAuth(); return; }
         const article = state.currentArticle;
@@ -603,20 +631,20 @@
         const prev = state.myReaction;
         const next = prev === reaction ? null : reaction;
 
-        // Optimistisk uppdatering
-        let likeDelta = 0, dislikeDelta = 0;
-        if (prev === "like") likeDelta--; if (prev === "dislike") dislikeDelta--;
-        if (next === "like") likeDelta++; if (next === "dislike") dislikeDelta++;
-        $("#likeCount").textContent = Math.max(0, (parseInt($("#likeCount").textContent) || 0) + likeDelta);
-        $("#dislikeCount").textContent = Math.max(0, (parseInt($("#dislikeCount").textContent) || 0) + dislikeDelta);
+        // Optimistisk uppdatering — bara den gamla och den nya reaktionens
+        // räknare ändras, resten lämnas orörda.
+        bumpCount(prev, -1);
+        bumpCount(next, 1);
         state.myReaction = next;
         renderReactionState();
 
         const { error } = await supabase.rpc("set_my_reaction", { p_article_id: article.id, p_reaction: next });
         if (error) { toast("Kunde inte spara din reaktion.", "error"); console.error(error); }
     }
-    $("#likeBtn").addEventListener("click", () => setReaction("like"));
-    $("#dislikeBtn").addEventListener("click", () => setReaction("dislike"));
+    $("#reactionBar").addEventListener("click", (e) => {
+        const btn = e.target.closest(".reaction-btn");
+        if (btn) setReaction(btn.dataset.reaction);
+    });
 
     async function loadRelated(article) {
         const { data } = await fetchPublished({ category: article.category, limit: 4 });
