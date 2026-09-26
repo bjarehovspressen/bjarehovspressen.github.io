@@ -597,7 +597,8 @@ p { margin: 0 0 1em; }
 
 .card-stats {
     display: flex;
-    gap: 14px;
+    flex-wrap: wrap;
+    gap: 6px 14px;
     font-size: 0.78rem;
     color: var(--bp-ink-faint);
     margin-top: auto;
@@ -723,7 +724,8 @@ p { margin: 0 0 1em; }
 .reaction-bar {
     display: flex;
     align-items: center;
-    gap: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
     margin: 36px 0;
     padding: 16px 0;
     border-top: 1px solid var(--bp-line);
@@ -733,20 +735,34 @@ p { margin: 0 0 1em; }
 .reaction-btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 9px 16px;
+    gap: 7px;
+    padding: 8px 14px;
     border-radius: 999px;
     border: 1px solid var(--bp-line-strong);
     background: transparent;
     font-weight: 600;
     font-size: 0.9rem;
+    color: var(--bp-ink);
     transition: all var(--bp-transition);
 }
-.reaction-btn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; }
-.reaction-btn:hover { border-color: var(--bp-ink); }
-.reaction-btn.active.like { background: color-mix(in srgb, var(--bp-success) 14%, transparent); border-color: var(--bp-success); color: var(--bp-success); }
-.reaction-btn.active.dislike { background: color-mix(in srgb, var(--bp-danger) 14%, transparent); border-color: var(--bp-danger); color: var(--bp-danger); }
+.reaction-btn .reaction-emoji { font-size: 1.05rem; line-height: 1; }
+.reaction-btn:hover { border-color: var(--bp-ink); transform: translateY(-1px); }
+.reaction-btn.active {
+    background: color-mix(in srgb, var(--bp-sea) 14%, transparent);
+    border-color: var(--bp-sea);
+    color: var(--bp-sea);
+}
+[data-theme="dark"] .reaction-btn.active,
+:root:not([data-theme="light"]) .reaction-btn.active { color: var(--bp-sea-light); border-color: var(--bp-sea-light); }
 .reaction-hint { font-size: 0.82rem; color: var(--bp-ink-faint); margin-left: auto; }
+
+/* Kompakt reaktionssammanfattning på artikelkort ("❤️ 34 😂 18 😮 6") */
+.card-reactions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+}
+.card-reactions span { display: inline-flex; align-items: center; gap: 3px; }
 
 /* Related */
 .related-block { margin-top: 44px; }
@@ -997,6 +1013,16 @@ p { margin: 0 0 1em; }
     font-weight: 700; background: var(--bp-paper-raised);
     padding-top: max(10px, env(safe-area-inset-top, 0px));
 }
+.ai-panel-body { position: relative; flex: 1; display: flex; min-height: 0; }
 .ai-panel iframe {
     flex: 1; width: 100%; border: none; background: #fff;
 }
+.ai-panel-blocked {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; text-align: center; padding: 24px;
+    background: var(--bp-paper);
+}
+.ai-panel-blocked.hidden { display: none; }
+.ai-blocked-emoji { font-size: 2.2rem; margin: 0; }
+.ai-panel-blocked p { margin: 0; color: var(--bp-ink-soft, inherit); max-width: 260px; }
