@@ -34,6 +34,9 @@
     const $ = (sel, root) => (root || document).querySelector(sel);
     const $all = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
+    // Bjärehovskolan, Lingvägen 17, 237 34 Bjärred — kartans mittpunkt (samma som i js/site.js).
+    const BJAREHOV_CENTER = [55.72061, 13.02144];
+
     function toast(msg, type) {
         const stack = $("#toastStack");
         const el = document.createElement("div");
@@ -113,6 +116,7 @@
         if (profile.role === "admin") $("#adminUsersBtn").classList.remove("hidden");
         initEditorUI();
         $("#editorShell").classList.remove("hidden");
+        initLocationMap();
 
         const params = new URLSearchParams(location.search);
         const id = params.get("id");
@@ -271,14 +275,38 @@
             $("#latInput").value = "55.72061";
             $("#lngInput").value = "13.02144";
             markDirty();
+            syncLocationMapFromInputs(true);
         });
         $("#clearCoordsBtn").addEventListener("click", () => {
             $("#latInput").value = "";
             $("#lngInput").value = "";
             markDirty();
+            clearLocationMarker();
         });
         $("#latInput").addEventListener("input", markDirty);
         $("#lngInput").addEventListener("input", markDirty);
+        $("#latInput").addEventListener("change", () => syncLocationMapFromInputs(true));
+        $("#lngInput").addEventListener("change", () => syncLocationMapFromInputs(true));
+        $("#useMapLinkBtn").addEventListener("click", () => {
+            const raw = $("#mapLinkInput").value;
+            const parsed = parseMapLink(raw);
+            if (!parsed) {
+                if (/goo\.gl/i.test(raw)) {
+                    toast("Den förkortade länken går inte att läsa av direkt. Öppna den i webbläsaren och klistra in den fullständiga adressen (med @lat,long i URL:en) istället.", "error");
+                } else {
+                    toast("Hittade inga koordinater i länken. Klistra in en Google Maps/Earth-länk, eller klicka direkt på kartan.", "error");
+                }
+                return;
+            }
+            if (Math.abs(parsed.lat) > 90 || Math.abs(parsed.lng) > 180) {
+                toast("Koordinaterna i länken ser inte rimliga ut.", "error");
+                return;
+            }
+            initLocationMap();
+            placeLocationMarker(parsed.lat, parsed.lng, { pan: true, updateInputs: true });
+            locationMap.setView([parsed.lat, parsed.lng], 16);
+            toast("Plats hämtad från länken.", "success");
+        });
         $("#pollsManagerBtn").addEventListener("click", () => {
             const showing = !$("#pollsShell").classList.contains("hidden");
             if (showing) { showEditorView(); } else { showPollsManagerView(); }
@@ -314,6 +342,7 @@
         showShell("editorShell");
         $("#myArticlesBtn").textContent = "Mina artiklar";
         if ($("#adminUsersBtn")) $("#adminUsersBtn").textContent = "Användare";
+        if (locationMap) setTimeout(() => locationMap.invalidateSize(), 50);
     }
     function showListView() {
         showShell("listShell");
@@ -414,6 +443,207 @@
         return Number.isFinite(n) ? n : null;
     }
 
+    // ------------------------------------------------------------------
+    // PLUS CODES (Open Location Code) — decode + recoverNearest, så att en
+    // kort kod (t.ex. "P2CC+6G") kan tolkas mot Bjärehovsområdet som
+    // referenspunkt, precis som en full kod.
+    // ------------------------------------------------------------------
+    const OLC_ALPHABET = "23456789CFGHJMPQRVWX";
+    const OLC_BASE = 20;
+    const OLC_LAT_MAX = 90, OLC_LNG_MAX = 180;
+    const OLC_PAIR_LEN = 10;
+    const OLC_SEP = "+";
+    const OLC_SEP_POS = 8;
+    const OLC_PAD = "0";
+    const OLC_GRID_COLS = 4, OLC_GRID_ROWS = 5;
+    const OLC_PAIR_RES = [20.0, 1.0, 0.05, 0.0025, 0.000125];
+    const OLC_GRID_SIZE_DEG = 0.000125;
+
+    function olcClipLat(lat) { return Math.min(OLC_LAT_MAX, Math.max(-OLC_LAT_MAX, lat)); }
+    function olcNormLng(lng) {
+        lng = lng % 360;
+        if (lng < -180) lng += 360;
+        if (lng >= 180) lng -= 360;
+        return lng;
+    }
+    function olcEncodePairs(lat, lng, codeLength) {
+        let code = "", aLat = lat + OLC_LAT_MAX, aLng = lng + OLC_LNG_MAX, n = 0;
+        while (n < codeLength) {
+            const place = OLC_PAIR_RES[Math.floor(n / 2)];
+            const dLat = Math.floor(aLat / place + 1e-9);
+            aLat -= dLat * place; code += OLC_ALPHABET.charAt(dLat); n++;
+            const dLng = Math.floor(aLng / place + 1e-9);
+            aLng -= dLng * place; code += OLC_ALPHABET.charAt(dLng); n++;
+            if (n === OLC_SEP_POS && n < codeLength) code += OLC_SEP;
+        }
+        if (code.length < OLC_SEP_POS) code += OLC_PAD.repeat(OLC_SEP_POS - code.length);
+        if (code.length === OLC_SEP_POS) code += OLC_SEP;
+        return code;
+    }
+    function olcEncode(lat, lng, codeLength) {
+        codeLength = codeLength || OLC_PAIR_LEN;
+        lat = olcClipLat(lat); lng = olcNormLng(lng);
+        return olcEncodePairs(lat, lng, Math.min(codeLength, OLC_PAIR_LEN));
+    }
+    function olcDecodePairsSeq(code, offset) {
+        let i = 0, value = 0;
+        while (i * 2 + offset < code.length) {
+            value += OLC_ALPHABET.indexOf(code.charAt(i * 2 + offset)) * OLC_PAIR_RES[i];
+            i++;
+        }
+        return [value, value + OLC_PAIR_RES[i - 1]];
+    }
+    function olcDecode(codeRaw) {
+        const code = codeRaw.replace(new RegExp("[" + "\\" + OLC_SEP + OLC_PAD + "]", "g"), "").toUpperCase();
+        const lat = olcDecodePairsSeq(code, 0), lng = olcDecodePairsSeq(code, 1);
+        let latLo = lat[0] - OLC_LAT_MAX, lngLo = lng[0] - OLC_LNG_MAX;
+        let latHi = lat[1] - OLC_LAT_MAX, lngHi = lng[1] - OLC_LNG_MAX;
+        if (code.length > OLC_PAIR_LEN) {
+            let latPlace = OLC_GRID_SIZE_DEG, lngPlace = OLC_GRID_SIZE_DEG;
+            let gLatLo = 0, gLngLo = 0;
+            const gridCode = code.substring(OLC_PAIR_LEN);
+            for (let i = 0; i < gridCode.length; i++) {
+                const idx = OLC_ALPHABET.indexOf(gridCode.charAt(i));
+                const row = Math.floor(idx / OLC_GRID_COLS), col = idx % OLC_GRID_COLS;
+                latPlace /= OLC_GRID_ROWS; lngPlace /= OLC_GRID_COLS;
+                gLatLo += row * latPlace; gLngLo += col * lngPlace;
+            }
+            latLo += gLatLo; lngLo += gLngLo;
+            latHi = (lat[0] - OLC_LAT_MAX) + gLatLo + latPlace;
+            lngHi = (lng[0] - OLC_LNG_MAX) + gLngLo + lngPlace;
+        }
+        return { latCenter: (latLo + latHi) / 2, lngCenter: (lngLo + lngHi) / 2 };
+    }
+    function olcIsShort(code) {
+        const sep = code.indexOf(OLC_SEP);
+        return sep >= 0 && sep < OLC_SEP_POS;
+    }
+    // Slår ihop en kort Plus Code med en referenspunkt (Bjärehovsområdet) till
+    // en full kod, enligt Open Location Code-specifikationens "recover nearest".
+    function olcRecoverNearest(codeRaw, refLat, refLng) {
+        const code = codeRaw.toUpperCase();
+        if (!olcIsShort(code)) return code;
+        refLng = olcNormLng(refLng);
+        const digitsToRecover = OLC_SEP_POS - code.indexOf(OLC_SEP);
+        const prefixPrecision = Math.pow(OLC_BASE, 2 - digitsToRecover / 2);
+        const prefix = olcEncode(refLat, refLng).substring(0, digitsToRecover);
+        const recoveredCode = prefix + code;
+        const area = olcDecode(recoveredCode);
+        let recLat = area.latCenter, recLng = area.lngCenter;
+        const latDiff = recLat - refLat;
+        if (latDiff > prefixPrecision / 2 && recLat - prefixPrecision > -OLC_LAT_MAX) recLat -= prefixPrecision;
+        else if (latDiff < -prefixPrecision / 2 && recLat + prefixPrecision < OLC_LAT_MAX) recLat += prefixPrecision;
+        const lngDiff = recLng - refLng;
+        if (lngDiff > prefixPrecision / 2) recLng -= prefixPrecision;
+        else if (lngDiff < -prefixPrecision / 2) recLng += prefixPrecision;
+        return olcEncode(recLat, recLng, recoveredCode.replace(OLC_SEP, "").length);
+    }
+    // Hittar och tolkar en Plus Code i en fritextsträng (t.ex. "P2CC+6G Bjärred"),
+    // med Bjärehovsområdet som referens för korta koder.
+    function parsePlusCode(raw) {
+        const s = (raw || "").toUpperCase();
+        const m = s.match(/\b([23456789CFGHJMPQRVWX]{2,8}\+[23456789CFGHJMPQRVWX]{2,7})\b/);
+        if (!m) return null;
+        try {
+            const full = olcRecoverNearest(m[1], BJAREHOV_CENTER[0], BJAREHOV_CENTER[1]);
+            const area = olcDecode(full);
+            if (!Number.isFinite(area.latCenter) || !Number.isFinite(area.lngCenter)) return null;
+            return { lat: area.latCenter, lng: area.lngCenter };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // PLATSVÄLJARE (Leaflet-karta + Google Maps/Earth-länk)
+    // ------------------------------------------------------------------
+    let locationMap = null;
+    let locationMarker = null;
+
+    function initLocationMap() {
+        if (locationMap || typeof window.L === "undefined") return;
+        const startLat = parseCoord($("#latInput").value);
+        const startLng = parseCoord($("#lngInput").value);
+        const hasStart = startLat != null && startLng != null;
+        locationMap = L.map("locationPickerMap").setView(hasStart ? [startLat, startLng] : BJAREHOV_CENTER, hasStart ? 16 : 14);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: "&copy; OpenStreetMap-bidragsgivare"
+        }).addTo(locationMap);
+        if (hasStart) placeLocationMarker(startLat, startLng, { pan: false, updateInputs: false });
+        locationMap.on("click", (e) => placeLocationMarker(e.latlng.lat, e.latlng.lng, { pan: false, updateInputs: true }));
+        setTimeout(() => locationMap.invalidateSize(), 80);
+    }
+
+    // Ritar/flyttar pin:en på kartan. updateInputs styr om lat/lng-fälten ska skrivas över
+    // (annars antas fälten redan vara källan, t.ex. vid initiering från sparad artikel).
+    function placeLocationMarker(lat, lng, opts) {
+        opts = opts || {};
+        if (!locationMap) return;
+        const rlat = Math.round(lat * 100000) / 100000;
+        const rlng = Math.round(lng * 100000) / 100000;
+        if (locationMarker) {
+            locationMarker.setLatLng([rlat, rlng]);
+        } else {
+            locationMarker = L.marker([rlat, rlng], { draggable: true }).addTo(locationMap);
+            locationMarker.on("dragend", () => {
+                const p = locationMarker.getLatLng();
+                placeLocationMarker(p.lat, p.lng, { pan: false, updateInputs: true });
+            });
+        }
+        if (opts.updateInputs !== false) {
+            $("#latInput").value = rlat;
+            $("#lngInput").value = rlng;
+            markDirty();
+        }
+        if (opts.pan) locationMap.panTo([rlat, rlng]);
+    }
+
+    function clearLocationMarker() {
+        if (locationMarker && locationMap) {
+            locationMap.removeLayer(locationMarker);
+            locationMarker = null;
+        }
+    }
+
+    // Läser av lat/lng-fälten och synkar kartans pin därefter (kallas efter att
+    // fälten satts programmatiskt, t.ex. "Använd Bjärehovskolan" eller vid inläsning
+    // av en befintlig artikel).
+    function syncLocationMapFromInputs(recenter) {
+        if (!locationMap) return;
+        const lat = parseCoord($("#latInput").value);
+        const lng = parseCoord($("#lngInput").value);
+        if (lat != null && lng != null) {
+            placeLocationMarker(lat, lng, { pan: false, updateInputs: false });
+            if (recenter) locationMap.setView([lat, lng], Math.max(locationMap.getZoom(), 15));
+        } else {
+            clearLocationMarker();
+        }
+    }
+
+    // Försöker tolka koordinater ur en Google Maps- eller Google Earth-länk (eller
+    // rått "lat, lng"-textformat). Fungerar inte för förkortade länkar (maps.app.goo.gl)
+    // eftersom vi inte kan följa omdirigeringar i webbläsaren — användaren får då
+    // öppna länken och klistra in den fullständiga adressen istället.
+    function parseMapLink(raw) {
+        const s = (raw || "").trim();
+        if (!s) return null;
+        let m;
+        m = s.match(/!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/);
+        if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+        m = s.match(/@(-?\d{1,3}\.\d+),\s*(-?\d{1,3}\.\d+)/);
+        if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+        m = s.match(/[?&]q=(-?\d{1,3}\.\d+),\s*(-?\d{1,3}\.\d+)/);
+        if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+        m = s.match(/[?&]ll=(-?\d{1,3}\.\d+),\s*(-?\d{1,3}\.\d+)/);
+        if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+        m = s.match(/^(-?\d{1,3}\.\d+)\s*[,;]\s*(-?\d{1,3}\.\d+)$/);
+        if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+        const plusCode = parsePlusCode(s);
+        if (plusCode) return plusCode;
+        return null;
+    }
+
     function resetEditor() {
         state.currentId = null;
         state.coverUrl = null;
@@ -430,6 +660,9 @@
         $("#isLiveInput").checked = false;
         $("#latInput").value = "";
         $("#lngInput").value = "";
+        $("#mapLinkInput").value = "";
+        clearLocationMarker();
+        if (locationMap) locationMap.setView(BJAREHOV_CENTER, 14);
         $("#liveComposerPanel").classList.add("hidden");
         $("#liveUpdateList").innerHTML = "";
         if (state.quill) state.quill.setContents([]);
@@ -611,6 +844,9 @@
         $("#isLiveInput").checked = !!data.is_live;
         $("#latInput").value = data.latitude != null ? data.latitude : "";
         $("#lngInput").value = data.longitude != null ? data.longitude : "";
+        $("#mapLinkInput").value = "";
+        initLocationMap();
+        syncLocationMapFromInputs(true);
         $("#liveComposerPanel").classList.toggle("hidden", !data.is_live);
         if (data.is_live) loadLiveUpdatesIntoEditor(data.id);
 

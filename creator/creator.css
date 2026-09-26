@@ -354,6 +354,7 @@ a { color: inherit; }
 
 /* Plats (Bjärehov-kartan) + Omröstningar */
 .location-quickfill { display: flex; gap: 8px; flex-wrap: wrap; }
+#locationPickerMap { height: 260px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border, #333); cursor: crosshair; }
 .poll-option-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
 .poll-option-row input { flex: 1; }
 .tip-item {
