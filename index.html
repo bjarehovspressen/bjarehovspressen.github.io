@@ -165,14 +165,26 @@
 
             <div class="article-body" id="artBody"></div>
 
-            <div class="reaction-bar">
-                <button class="reaction-btn like" id="likeBtn">
-                    <svg viewBox="0 0 24 24"><path d="M7 22V11m0 11H4a1 1 0 01-1-1v-9a1 1 0 011-1h3m3 11h8.28a2 2 0 002-1.66l1.38-8A2 2 0 0018.7 8H14V4a2 2 0 00-2-2l-3 7v13z"/></svg>
-                    <span id="likeCount">0</span>
+            <div class="reaction-bar" id="reactionBar">
+                <button class="reaction-btn" data-reaction="love" title="Älskar">
+                    <span class="reaction-emoji">❤️</span>
+                    <span class="reaction-count" id="loveCount">0</span>
                 </button>
-                <button class="reaction-btn dislike" id="dislikeBtn">
-                    <svg viewBox="0 0 24 24"><path d="M17 2v11m0-11h3a1 1 0 011 1v9a1 1 0 01-1 1h-3m-3-11H5.72a2 2 0 00-2 1.66l-1.38 8A2 2 0 004.3 16H9v4a2 2 0 002 2l3-7V2z"/></svg>
-                    <span id="dislikeCount">0</span>
+                <button class="reaction-btn" data-reaction="laugh" title="Skrattar">
+                    <span class="reaction-emoji">😂</span>
+                    <span class="reaction-count" id="laughCount">0</span>
+                </button>
+                <button class="reaction-btn" data-reaction="wow" title="Wow">
+                    <span class="reaction-emoji">😮</span>
+                    <span class="reaction-count" id="wowCount">0</span>
+                </button>
+                <button class="reaction-btn" data-reaction="like" title="Gillar">
+                    <span class="reaction-emoji">👍</span>
+                    <span class="reaction-count" id="likeCount">0</span>
+                </button>
+                <button class="reaction-btn" data-reaction="dislike" title="Ogillar">
+                    <span class="reaction-emoji">👎</span>
+                    <span class="reaction-count" id="dislikeCount">0</span>
                 </button>
                 <span class="reaction-hint" id="viewsHint">0 visningar</span>
             </div>
@@ -316,7 +328,14 @@
             <button class="icon-btn" id="aiAssistantClose" title="Stäng" style="width:30px;height:30px;">✕</button>
         </div>
     </div>
-    <iframe id="aiAssistantFrame" src="" loading="lazy" title="AI-assistent"></iframe>
+    <div class="ai-panel-body" id="aiAssistantBody">
+        <iframe id="aiAssistantFrame" src="" loading="lazy" title="AI-assistent"></iframe>
+        <div class="ai-panel-blocked hidden" id="aiAssistantBlocked">
+            <p class="ai-blocked-emoji">🤖</p>
+            <p>Assistenten kan tyvärr inte visas inuti den här rutan.</p>
+            <a class="btn btn-primary btn-sm" href="https://anchors-arcade.github.io/Ai-Assistant/" target="_blank" rel="noopener">Öppna AI-assistenten i ny flik ↗</a>
+        </div>
+    </div>
 </div>
 <script>
 (function () {
@@ -324,11 +343,43 @@
     var panel = document.getElementById("aiAssistantPanel");
     var closeBtn = document.getElementById("aiAssistantClose");
     var frame = document.getElementById("aiAssistantFrame");
+    var blockedBox = document.getElementById("aiAssistantBlocked");
     var AI_URL = "https://anchors-arcade.github.io/Ai-Assistant/";
+    var checkedOnce = false;
+
+    function checkIfBlocked() {
+        // Om sajten vägrar visas i en iframe (X-Frame-Options / CSP frame-ancestors)
+        // ersätter webbläsaren den tyst med en tom/intern sida i stället för att kasta ett
+        // JS-fel. Den interna sidan räknas som "samma ursprung", så vi KAN läsa dess
+        // contentDocument utan att webbläsaren stoppar oss. En riktig, laddad extern sida
+        // räknas som ett annat ursprung, så det kastar ett SecurityError när vi försöker
+        // läsa den — och det tolkar vi som "allt funkar".
+        try {
+            var doc = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document);
+            var bodyText = doc && doc.body ? doc.body.innerHTML.trim() : "";
+            if (!doc || bodyText.length < 10) {
+                showBlocked();
+            }
+        } catch (err) {
+            // Kastade fel = det är en riktig extern sida som laddats -> allt är bra.
+        }
+    }
+
+    function showBlocked() {
+        blockedBox.classList.remove("hidden");
+        frame.classList.add("hidden");
+    }
+
     function openPanel() {
-        if (!frame.src) frame.src = AI_URL; // ladda iframen först när den faktiskt öppnas
+        if (!frame.src) {
+            frame.src = AI_URL; // ladda iframen först när den faktiskt öppnas
+        }
         panel.classList.remove("hidden");
         fab.setAttribute("aria-expanded", "true");
+        if (!checkedOnce) {
+            checkedOnce = true;
+            setTimeout(checkIfBlocked, 2500);
+        }
     }
     function closePanel() {
         panel.classList.add("hidden");
