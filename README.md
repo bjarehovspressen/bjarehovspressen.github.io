@@ -62,6 +62,8 @@ Detta skapar:
 Det är säkert att köra filen flera gånger — den använder `if not exists` / `drop policy if exists` där det behövs.
 
 > **Nytt:** Efter att du kört `schema.sql`, kör även [`supabase/migration_v2.sql`](supabase/migration_v2.sql) i SQL Editor. Den lägger till stöd för Breaking News, Live-artiklar, Bildgalleri, Nyhetstips och statistikdashboard (se avsnittet [Nya funktioner (v2)](#nya-funktioner-v2) nedan).
+>
+> **Ännu nyare:** Kör därefter även [`supabase/migration_v3.sql`](supabase/migration_v3.sql) för att aktivera **Bjärehov-kartan** och **Veckans omröstning** (se avsnittet [Nya funktioner (v3)](#nya-funktioner-v3) nedan).
 
 ---
 
@@ -281,3 +283,14 @@ Kör `supabase/migration_v2.sql` (efter `schema.sql`) för att aktivera:
 - **Statistikdashboard**: under "📈 Statistik" i Artikelskaparen — totala visningar/artiklar/användare/kommentarer, ett stapeldiagram över visningar per dag (senaste 14 dagarna) och mest lästa artiklar den senaste veckan.
 
 Alla nya databasobjekt (tabeller, RPC:er, RLS-policyer) beskrivs i kommentarer direkt i `migration_v2.sql`.
+
+---
+
+## Nya funktioner (v3)
+
+Kör `supabase/migration_v3.sql` (efter `schema.sql` och `migration_v2.sql`) för att aktivera:
+
+- **📍 Bjärehov-karta**: `#/karta` på publika sidan visar en interaktiv karta (OpenStreetMap/Leaflet) centrerad på Bjärehovskolan, Lingvägen 17, 237 34 Bjärred. Artiklar med en angiven plats visas som markörer — klicka på en markör för att öppna artikeln. Ange plats (latitud/longitud) i panelen "📍 Plats" i Artikelskaparen när du skriver en artikel (knappen "Använd Bjärehovskolan" fyller i skolans koordinater direkt). Lämna fälten tomma för artiklar utan plats.
+- **📊 Veckans omröstning**: skapa omröstningar under "📊 Omröstningar" i Artikelskaparen — en fråga plus valfritt antal svarsalternativ. Kryssa i "Visa som Veckans omröstning" för att visa den överst på startsidan; endast en omröstning kan vara "Veckans omröstning" åt gången. Alla omröstningar listas även på en egen sida, `#/omrostningar`. Röstning kräver ingen inloggning (rösten knyts till en slumpad nyckel i webbläsarens `localStorage` för att undvika dubbelröstning) och resultaten visas direkt som staplar/procent. Redaktionen kan avsluta eller återöppna en omröstning, samt ta bort den, i Artikelskaparen.
+
+Alla nya databasobjekt (kolumner, tabeller, RPC:er, RLS-policyer) beskrivs i kommentarer direkt i `migration_v3.sql`.

@@ -351,3 +351,16 @@ a { color: inherit; }
     padding-top: max(10px, env(safe-area-inset-top, 0px));
 }
 .ai-panel iframe { flex: 1; width: 100%; border: none; background: #fff; }
+
+/* Plats (Bjärehov-kartan) + Omröstningar */
+.location-quickfill { display: flex; gap: 8px; flex-wrap: wrap; }
+.poll-option-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.poll-option-row input { flex: 1; }
+.tip-item {
+    background: var(--cr-bg);
+    border: 1px solid var(--cr-line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+}
+.tip-item .tip-meta { font-size: .78rem; color: var(--cr-ink-faint); margin-top: 6px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }

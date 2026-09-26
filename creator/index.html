@@ -20,6 +20,7 @@
         <button class="btn btn-ghost btn-sm" id="myArticlesBtn">Mina artiklar</button>
         <button class="btn btn-ghost btn-sm" id="tipsInboxBtn">💡 Tips</button>
         <button class="btn btn-ghost btn-sm" id="galleryManagerBtn">📸 Galleri</button>
+        <button class="btn btn-ghost btn-sm" id="pollsManagerBtn">📊 Omröstningar</button>
         <button class="btn btn-ghost btn-sm" id="statsBtn">📈 Statistik</button>
         <button class="btn btn-ghost btn-sm hidden" id="adminUsersBtn">Användare</button>
         <button class="btn btn-outline btn-sm" id="newArticleBtn">Ny artikel</button>
@@ -102,6 +103,23 @@
         </div>
 
         <div class="panel">
+            <h3>📍 Plats (Bjärehov-kartan)</h3>
+            <div class="field-hint" style="margin-bottom:10px;">Fyll i om artikeln hör till en plats — då dyker den upp på <a href="../index.html#/karta" target="_blank">Bjärehov-kartan</a>. Lämna tomt annars.</div>
+            <div class="field">
+                <label for="latInput">Latitud</label>
+                <input type="text" id="latInput" placeholder="T.ex. 55.72061" inputmode="decimal">
+            </div>
+            <div class="field">
+                <label for="lngInput">Longitud</label>
+                <input type="text" id="lngInput" placeholder="T.ex. 13.02144" inputmode="decimal">
+            </div>
+            <div class="location-quickfill">
+                <button type="button" class="btn btn-ghost btn-sm" id="useSchoolCoordsBtn">Använd Bjärehovskolan</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="clearCoordsBtn">Rensa plats</button>
+            </div>
+        </div>
+
+        <div class="panel">
             <h3>Omslagsbild</h3>
             <div id="coverPreviewWrap" class="hidden">
                 <div class="cover-preview">
@@ -172,6 +190,37 @@
             <button type="submit" class="btn btn-primary btn-sm">Skapa galleri</button>
         </form>
         <div id="galleryManagerList"></div>
+    </div>
+</div>
+
+<!-- ============================== VY: OMRÖSTNINGAR ============================== -->
+<div class="cr-shell hidden" id="pollsShell" style="grid-template-columns:1fr;">
+    <div class="panel">
+        <h3>📊 Ny omröstning</h3>
+        <div class="field">
+            <label for="pollQuestionInput">Fråga</label>
+            <input type="text" id="pollQuestionInput" placeholder="T.ex. Vilken skolmat ska vi ha oftare?" maxlength="200">
+        </div>
+        <div class="field">
+            <label for="pollDescInput">Beskrivning (valfritt)</label>
+            <input type="text" id="pollDescInput" placeholder="Kort förklaring (valfritt)" maxlength="500">
+        </div>
+        <div class="field">
+            <label>Svarsalternativ</label>
+            <div id="pollOptionsList">
+                <div class="poll-option-row"><input type="text" class="poll-option-input" placeholder="Alternativ 1" maxlength="120"></div>
+                <div class="poll-option-row"><input type="text" class="poll-option-input" placeholder="Alternativ 2" maxlength="120"></div>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" id="addPollOptionBtn">+ Lägg till alternativ</button>
+        </div>
+        <div class="field field-checkbox">
+            <label><input type="checkbox" id="pollFeaturedInput"> ⭐ Visa som "Veckans omröstning" på startsidan</label>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="createPollBtn">Skapa och publicera</button>
+    </div>
+    <div class="panel">
+        <h3>Alla omröstningar</h3>
+        <div id="pollsManagerList"></div>
     </div>
 </div>
 
