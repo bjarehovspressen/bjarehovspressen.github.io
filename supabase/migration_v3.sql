@@ -119,6 +119,7 @@ create policy "poll_votes_no_direct_write"
 -- ----------------------------------------------------------------------------
 -- 3. RPC: cast_poll_vote — rösta (eller ändra sin röst) i en öppen omröstning
 -- ----------------------------------------------------------------------------
+drop function if exists public.cast_poll_vote(uuid, uuid, text);
 create or replace function public.cast_poll_vote(p_poll_id uuid, p_option_id uuid, p_voter_key text)
 returns void
 language plpgsql
@@ -150,8 +151,9 @@ grant execute on function public.cast_poll_vote(uuid, uuid, text) to anon, authe
 -- ----------------------------------------------------------------------------
 -- 4. RPC: poll_results — sammanräknade resultat (publikt, aldrig per person)
 -- ----------------------------------------------------------------------------
+drop function if exists public.poll_results(uuid);
 create or replace function public.poll_results(p_poll_id uuid)
-returns table (option_id uuid, label text, position integer, votes bigint)
+returns table (option_id uuid, label text, "position" integer, votes bigint)
 language sql
 security definer
 set search_path = public
@@ -173,6 +175,7 @@ grant execute on function public.poll_results(uuid) to anon, authenticated;
 -- ----------------------------------------------------------------------------
 -- 5. RPC: my_poll_vote — vilket alternativ har den här enheten redan röstat på?
 -- ----------------------------------------------------------------------------
+drop function if exists public.my_poll_vote(uuid, text);
 create or replace function public.my_poll_vote(p_poll_id uuid, p_voter_key text)
 returns uuid
 language sql
