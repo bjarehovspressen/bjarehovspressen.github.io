@@ -394,6 +394,8 @@
 
         const { data: mostRead } = await fetchPublished({ limit: 3, order: "views" });
         renderGridInto("#mostReadGrid", mostRead, "Ingen statistik ännu.");
+
+        renderWeeklyPoll();
     }
 
     function renderHero(items) {
@@ -882,10 +884,238 @@
     }
 
     // ------------------------------------------------------------------
+    // 12f. BJÄREHOV-KARTA
+    // ------------------------------------------------------------------
+    // Bjärehovskolan, Lingvägen 17, 237 34 Bjärred — kartans mittpunkt.
+    const BJAREHOV_CENTER = [55.72061, 13.02144];
+    let bpMapInstance = null;
+    let bpMapMarkers = [];
+
+    async function renderMap() {
+        showOnly("viewMap");
+        if (!supabase || typeof window.L === "undefined") {
+            $("#bpMapEmpty").classList.remove("hidden");
+            $("#bpMapEmpty").innerHTML = emptyState("Kartan kunde inte laddas", "Kontrollera din internetanslutning och ladda om sidan.");
+            return;
+        }
+        $("#bpMapEmpty").classList.add("hidden");
+
+        if (!bpMapInstance) {
+            bpMapInstance = L.map("bpMap").setView(BJAREHOV_CENTER, 14);
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                maxZoom: 19,
+                attribution: "&copy; OpenStreetMap-bidragsgivare"
+            }).addTo(bpMapInstance);
+        } else {
+            // Om kartan öppnas igen efter att ha varit dold behöver Leaflet
+            // räkna om sin storlek, annars blir den grå.
+            setTimeout(() => bpMapInstance.invalidateSize(), 50);
+        }
+
+        bpMapMarkers.forEach(m => bpMapInstance.removeLayer(m));
+        bpMapMarkers = [];
+
+        const { data, error } = await supabase.from("articles")
+            .select("id, title, slug, excerpt, category, image_url, latitude, longitude, published_at")
+            .eq("status", "published")
+            .not("latitude", "is", null)
+            .not("longitude", "is", null)
+            .order("published_at", { ascending: false });
+
+        if (error) { console.error(error); return; }
+
+        if (!data || !data.length) {
+            $("#bpMapEmpty").classList.remove("hidden");
+            $("#bpMapEmpty").innerHTML = emptyState("Inga artiklar på kartan ännu", "Artiklar med en angiven plats i Bjärehov dyker upp här.");
+        }
+
+        (data || []).forEach(a => {
+            const marker = L.marker([a.latitude, a.longitude]).addTo(bpMapInstance);
+            const popupEl = document.createElement("div");
+            popupEl.className = "map-popup";
+            popupEl.innerHTML = `
+                ${categoryTag(a.category)}
+                <h4>${escapeHtml(a.title)}</h4>
+                <p style="font-size:.82rem;color:var(--bp-ink-faint);margin:0 0 6px;">${escapeHtml(a.excerpt || "")}</p>
+                <a class="btn btn-primary btn-sm" href="#/artikel/${a.slug}" data-link>Läs artikeln</a>`;
+            marker.bindPopup(popupEl);
+            bpMapMarkers.push(marker);
+        });
+
+        setTimeout(() => bpMapInstance.invalidateSize(), 60);
+    }
+
+    // ------------------------------------------------------------------
+    // 12g. OMRÖSTNINGAR ("Veckans omröstning")
+    // ------------------------------------------------------------------
+    function getVoterKey() {
+        let key = localStorage.getItem("bp_voter_key");
+        if (!key) {
+            key = "v_" + (crypto.randomUUID ? crypto.randomUUID() : (Date.now() + "_" + Math.random().toString(36).slice(2)));
+            localStorage.setItem("bp_voter_key", key);
+        }
+        return key;
+    }
+
+    function pollStatusBadgeHtml(p) {
+        if (p.status === "closed") return `<span class="poll-status-badge closed">Avslutad</span>`;
+        return `<span class="poll-status-badge">Pågår</span>`;
+    }
+
+    async function renderWeeklyPoll() {
+        const section = $("#weeklyPollSection");
+        if (!supabase) { section.classList.add("hidden"); return; }
+        let { data: poll } = await supabase.from("polls")
+            .select("id, question, description, status, closes_at")
+            .eq("status", "published").eq("is_featured", true)
+            .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (!poll) {
+            const res = await supabase.from("polls")
+                .select("id, question, description, status, closes_at")
+                .eq("status", "published")
+                .order("created_at", { ascending: false }).limit(1).maybeSingle();
+            poll = res.data;
+        }
+        if (!poll) { section.classList.add("hidden"); return; }
+        section.classList.remove("hidden");
+        $("#weeklyPollWrap").innerHTML = `<div class="poll-widget" id="weeklyPollBody"></div>`;
+        await renderPollInto("#weeklyPollBody", poll);
+    }
+
+    async function renderPollsList() {
+        showOnly("viewPolls");
+        $("#pollDetailView").classList.add("hidden");
+        $("#pollsListView").classList.remove("hidden");
+        $("#pollsListGrid").innerHTML = skeletonCards(4);
+        const { data, error } = await supabase.from("polls")
+            .select("id, question, description, status, created_at")
+            .in("status", ["published", "closed"])
+            .order("created_at", { ascending: false });
+        if (error) { console.error(error); return; }
+        const el = $("#pollsListGrid");
+        if (!data || !data.length) { el.innerHTML = emptyState("Inga omröstningar ännu", "Redaktionen har inte publicerat några omröstningar ännu."); return; }
+        el.innerHTML = data.map(p => `
+            <a class="poll-card" href="#/omrostning/${p.id}" data-link>
+                ${pollStatusBadgeHtml(p)}
+                <h3>${escapeHtml(p.question)}</h3>
+                <div class="poll-meta"><span>${timeAgo(p.created_at)}</span></div>
+            </a>`).join("");
+        bindLinks(el);
+    }
+
+    async function renderPollDetail(id) {
+        showOnly("viewPolls");
+        $("#pollsListView").classList.add("hidden");
+        $("#pollDetailView").classList.remove("hidden");
+        $("#pollDetailWrap").innerHTML = `<div class="poll-detail-card"><div class="skel skel-line w60"></div></div>`;
+        const { data: poll } = await supabase.from("polls")
+            .select("id, question, description, status, closes_at")
+            .eq("id", id).maybeSingle();
+        if (!poll) { showOnly("viewNotFound"); return; }
+        $("#pollDetailWrap").innerHTML = `<div class="poll-detail-card" id="pollDetailBody"></div>`;
+        await renderPollInto("#pollDetailBody", poll, true);
+    }
+
+    // Ritar upp en omröstning (fråga + alternativ eller resultat) i valfri container.
+    // isFullPage styr om rubriken visas som <h2> (detaljsida) eller <h3> (widget).
+    async function renderPollInto(sel, poll, isFullPage) {
+        const el = $(sel);
+        const { data: options } = await supabase.from("poll_options")
+            .select("id, label, position").eq("poll_id", poll.id).order("position", { ascending: true });
+        const voterKey = getVoterKey();
+        let myVote = null;
+        if (supabase && poll.status === "published") {
+            const { data } = await supabase.rpc("my_poll_vote", { p_poll_id: poll.id, p_voter_key: voterKey });
+            myVote = data || null;
+        }
+
+        const headingTag = isFullPage ? "h2" : "h3";
+        const closedNote = poll.status === "closed" ? `<div class="poll-closed-tag">Denna omröstning är avslutad.</div>` : "";
+
+        el.innerHTML = `
+            <${headingTag}>${escapeHtml(poll.question)}</${headingTag}>
+            ${poll.description ? `<p class="poll-desc">${escapeHtml(poll.description)}</p>` : ""}
+            ${closedNote}
+            <div id="pollBody-${poll.id}"></div>`;
+
+        if (poll.status === "published" && !myVote) {
+            renderPollVoteForm($("#pollBody-" + poll.id), poll, options || []);
+        } else {
+            await renderPollResults($("#pollBody-" + poll.id), poll, myVote);
+        }
+    }
+
+    function renderPollVoteForm(container, poll, options) {
+        let selected = null;
+        container.innerHTML = `
+            <div class="poll-options-form">
+                ${options.map(o => `
+                    <label class="poll-option-choice" data-option="${o.id}">
+                        <input type="radio" name="pollOpt-${poll.id}" value="${o.id}">
+                        <span>${escapeHtml(o.label)}</span>
+                    </label>`).join("")}
+            </div>
+            <div class="poll-vote-row">
+                <button class="btn btn-primary btn-sm" id="pollVoteBtn-${poll.id}" disabled>Rösta</button>
+                <span class="poll-vote-hint" id="pollResultsLink-${poll.id}">Din röst är anonym och kan ändras.</span>
+            </div>`;
+        $all(".poll-option-choice", container).forEach(label => {
+            label.addEventListener("click", () => {
+                selected = label.dataset.option;
+                $all(".poll-option-choice", container).forEach(l => l.classList.toggle("selected", l === label));
+                $("#pollVoteBtn-" + poll.id, container).disabled = false;
+            });
+        });
+        $("#pollVoteBtn-" + poll.id, container).addEventListener("click", async () => {
+            if (!selected) return;
+            const btn = $("#pollVoteBtn-" + poll.id, container);
+            btn.disabled = true;
+            btn.textContent = "Röstar…";
+            const { error } = await supabase.rpc("cast_poll_vote", {
+                p_poll_id: poll.id, p_option_id: selected, p_voter_key: getVoterKey()
+            });
+            if (error) {
+                toast("Kunde inte registrera din röst.", "error");
+                console.error(error);
+                btn.disabled = false;
+                btn.textContent = "Rösta";
+                return;
+            }
+            toast("Tack för din röst!", "success");
+            await renderPollResults(container, poll, selected);
+        });
+    }
+
+    async function renderPollResults(container, poll, myOptionId) {
+        const { data: results, error } = await supabase.rpc("poll_results", { p_poll_id: poll.id });
+        if (error) { console.error(error); container.innerHTML = `<p class="field-hint">Kunde inte hämta resultat.</p>`; return; }
+        const rows = results || [];
+        const total = rows.reduce((sum, r) => sum + Number(r.votes || 0), 0);
+        const maxVotes = Math.max(1, ...rows.map(r => Number(r.votes || 0)));
+        container.innerHTML = `
+            <div class="poll-results">
+                ${rows.map(r => {
+                    const pct = total ? Math.round((Number(r.votes) / total) * 100) : 0;
+                    const isWinning = total > 0 && Number(r.votes) === maxVotes;
+                    const isMine = myOptionId && r.option_id === myOptionId;
+                    return `
+                    <div class="poll-result-row${isWinning ? " is-winning" : ""}">
+                        <div class="poll-result-label">
+                            <span>${escapeHtml(r.label)}${isMine ? " ✓ (din röst)" : ""}</span>
+                            <strong>${pct}%</strong>
+                        </div>
+                        <div class="poll-result-track"><div class="poll-result-fill" style="width:${pct}%"></div></div>
+                    </div>`;
+                }).join("")}
+            </div>
+            <div class="poll-total-votes">${total} ${total === 1 ? "röst" : "röster"} totalt</div>`;
+    }
+
+    // ------------------------------------------------------------------
     // 13. ROUTER (hash-baserad — funkar utan serverkonfiguration på GitHub Pages)
     // ------------------------------------------------------------------
     function showOnly(id) {
-        ["viewHome", "viewCategory", "viewSearch", "viewArticle", "viewGallery", "viewNotFound"].forEach(v => {
+        ["viewHome", "viewCategory", "viewSearch", "viewArticle", "viewGallery", "viewMap", "viewPolls", "viewNotFound"].forEach(v => {
             $("#" + v).classList.toggle("hidden", v !== id);
         });
     }
@@ -932,6 +1162,16 @@
             highlightActiveNav("galleri");
             const id = decodeURIComponent(hash.split("/")[2] || "");
             await renderGalleryDetail(id);
+        } else if (hash === "#/karta") {
+            highlightActiveNav("karta");
+            await renderMap();
+        } else if (hash === "#/omrostningar") {
+            highlightActiveNav("omrostningar");
+            await renderPollsList();
+        } else if (hash.startsWith("#/omrostning/")) {
+            highlightActiveNav("omrostningar");
+            const id = decodeURIComponent(hash.split("/")[2] || "");
+            await renderPollDetail(id);
         } else {
             showOnly("viewNotFound");
         }

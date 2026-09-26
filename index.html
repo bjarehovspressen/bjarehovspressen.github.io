@@ -7,6 +7,7 @@
 <meta name="description" content="Bjärehovs Pressen bevakar lokalt, Sverige, världen, sport, kultur, tech, ekonomi och opinion.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📰</text></svg>">
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 </head>
 <body>
 
@@ -83,6 +84,8 @@
                 <li><a href="#/kategori/handelser" data-link data-cat="handelser">Händelser</a></li>
                 <li><a href="#/kategori/intervjuer" data-link data-cat="intervjuer">Intervjuer</a></li>
                 <li><a href="#/galleri" data-link data-cat="galleri">📸 Galleri</a></li>
+                <li><a href="#/karta" data-link data-cat="karta">📍 Bjärehov-karta</a></li>
+                <li><a href="#/omrostningar" data-link data-cat="omrostningar">📊 Omröstningar</a></li>
             </ul>
         </div>
     </nav>
@@ -110,6 +113,14 @@
             <div class="hero-grid" id="heroGrid">
                 <!-- fylls av JS: huvudnyhet + toppnyheter -->
             </div>
+        </section>
+
+        <section class="section-block container hidden" id="weeklyPollSection">
+            <div class="section-head">
+                <h2>📊 Veckans omröstning</h2>
+                <a href="#/omrostningar" data-link class="btn btn-outline btn-sm">Alla omröstningar</a>
+            </div>
+            <div id="weeklyPollWrap"></div>
         </section>
 
         <section class="section-block container">
@@ -163,6 +174,30 @@
                 <a href="#/galleri" data-link class="btn btn-outline btn-sm" style="margin-top:8px;">← Alla galleri</a>
             </div>
             <div class="gallery-grid" id="galleryDetailGrid"></div>
+        </div>
+    </section>
+
+    <!-- ---------- BJÄREHOV-KARTA ---------- -->
+    <section id="viewMap" class="section-block container hidden">
+        <div class="section-head">
+            <h2>📍 Bjärehov-karta</h2>
+        </div>
+        <p class="map-intro">Nyheter kopplade till en plats i och kring Bjärehov, utsatta på kartan. Klicka på en markör för att öppna artikeln.</p>
+        <div id="bpMapWrap">
+            <div id="bpMap"></div>
+        </div>
+        <div id="bpMapEmpty" class="hidden"></div>
+    </section>
+
+    <!-- ---------- OMRÖSTNINGAR ---------- -->
+    <section id="viewPolls" class="section-block container hidden">
+        <div id="pollsListView">
+            <div class="section-head"><h2>📊 Omröstningar</h2></div>
+            <div class="poll-list" id="pollsListGrid"></div>
+        </div>
+        <div id="pollDetailView" class="hidden">
+            <a href="#/omrostningar" data-link class="btn btn-outline btn-sm" style="margin-bottom:14px;display:inline-flex;">← Alla omröstningar</a>
+            <div id="pollDetailWrap"></div>
         </div>
     </section>
 
@@ -449,6 +484,7 @@
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/site.js"></script>
 </body>

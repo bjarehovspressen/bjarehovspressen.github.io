@@ -267,6 +267,29 @@
         });
         $("#liveUpdateForm").addEventListener("submit", addLiveUpdate);
         $("#newGalleryForm").addEventListener("submit", createGallery);
+        $("#useSchoolCoordsBtn").addEventListener("click", () => {
+            $("#latInput").value = "55.72061";
+            $("#lngInput").value = "13.02144";
+            markDirty();
+        });
+        $("#clearCoordsBtn").addEventListener("click", () => {
+            $("#latInput").value = "";
+            $("#lngInput").value = "";
+            markDirty();
+        });
+        $("#latInput").addEventListener("input", markDirty);
+        $("#lngInput").addEventListener("input", markDirty);
+        $("#pollsManagerBtn").addEventListener("click", () => {
+            const showing = !$("#pollsShell").classList.contains("hidden");
+            if (showing) { showEditorView(); } else { showPollsManagerView(); }
+        });
+        $("#addPollOptionBtn").addEventListener("click", () => {
+            const row = document.createElement("div");
+            row.className = "poll-option-row";
+            row.innerHTML = `<input type="text" class="poll-option-input" placeholder="Alternativ" maxlength="120">`;
+            $("#pollOptionsList").appendChild(row);
+        });
+        $("#createPollBtn").addEventListener("click", createPoll);
         if (state.profile.role === "admin") {
             $("#adminUsersBtn").addEventListener("click", () => {
                 const showingAdmin = !$("#adminShell").classList.contains("hidden");
@@ -283,7 +306,7 @@
         });
     }
 
-    const ALL_SHELLS = ["editorShell", "listShell", "adminShell", "tipsShell", "galleryShell", "statsShell"];
+    const ALL_SHELLS = ["editorShell", "listShell", "adminShell", "tipsShell", "galleryShell", "pollsShell", "statsShell"];
     function showShell(id) {
         ALL_SHELLS.forEach(s => $("#" + s).classList.toggle("hidden", s !== id));
     }
@@ -315,6 +338,10 @@
     function showStatsView() {
         showShell("statsShell");
         loadStatsDashboard();
+    }
+    function showPollsManagerView() {
+        showShell("pollsShell");
+        loadPollsManager();
     }
 
     // ------------------------------------------------------------------
@@ -374,8 +401,17 @@
             content_html: state.quill ? state.quill.root.innerHTML : "",
             publish_at: $("#publishAtInput").value || null,
             is_breaking: $("#isBreakingInput").checked,
-            is_live: $("#isLiveInput").checked
+            is_live: $("#isLiveInput").checked,
+            latitude: parseCoord($("#latInput").value),
+            longitude: parseCoord($("#lngInput").value)
         };
+    }
+
+    function parseCoord(raw) {
+        const v = (raw || "").trim().replace(",", ".");
+        if (!v) return null;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
     }
 
     function resetEditor() {
@@ -392,6 +428,8 @@
         $("#coverDrop").classList.remove("hidden");
         $("#isBreakingInput").checked = false;
         $("#isLiveInput").checked = false;
+        $("#latInput").value = "";
+        $("#lngInput").value = "";
         $("#liveComposerPanel").classList.add("hidden");
         $("#liveUpdateList").innerHTML = "";
         if (state.quill) state.quill.setContents([]);
@@ -500,7 +538,9 @@
             status: status,
             author_id: state.session.user.id,
             is_breaking: d.is_breaking,
-            is_live: d.is_live
+            is_live: d.is_live,
+            latitude: d.latitude,
+            longitude: d.longitude
         };
         if (status === "published") {
             payload.published_at = d.publish_at ? new Date(d.publish_at).toISOString() : new Date().toISOString();
@@ -569,6 +609,8 @@
         $all('input[name="cat"]').forEach(r => r.checked = r.value === data.category);
         $("#isBreakingInput").checked = !!data.is_breaking;
         $("#isLiveInput").checked = !!data.is_live;
+        $("#latInput").value = data.latitude != null ? data.latitude : "";
+        $("#lngInput").value = data.longitude != null ? data.longitude : "";
         $("#liveComposerPanel").classList.toggle("hidden", !data.is_live);
         if (data.is_live) loadLiveUpdatesIntoEditor(data.id);
 
@@ -892,6 +934,101 @@
         $all(".remove-gallery-photo", el).forEach(btn => btn.addEventListener("click", async () => {
             await supabase.from("gallery_images").delete().eq("id", btn.dataset.id);
             loadGalleryPhotos(galleryId);
+        }));
+    }
+
+    // ------------------------------------------------------------------
+    // OMRÖSTNINGAR ("Veckans omröstning")
+    // ------------------------------------------------------------------
+    async function createPoll() {
+        const question = $("#pollQuestionInput").value.trim();
+        const description = $("#pollDescInput").value.trim();
+        const isFeatured = $("#pollFeaturedInput").checked;
+        const options = $all(".poll-option-input")
+            .map(i => i.value.trim())
+            .filter(Boolean);
+
+        if (!question) { toast("Skriv en fråga för omröstningen.", "error"); return; }
+        if (options.length < 2) { toast("Lägg till minst två svarsalternativ.", "error"); return; }
+
+        const btn = $("#createPollBtn");
+        btn.disabled = true;
+
+        if (isFeatured) {
+            // Endast en omröstning kan vara "Veckans omröstning" i taget.
+            await supabase.from("polls").update({ is_featured: false }).eq("is_featured", true);
+        }
+
+        const { data: poll, error } = await supabase.from("polls").insert({
+            question, description,
+            status: "published",
+            is_featured: isFeatured,
+            created_by: state.session.user.id
+        }).select().single();
+
+        if (error) { toast("Kunde inte skapa omröstningen: " + error.message, "error"); btn.disabled = false; return; }
+
+        const optionRows = options.map((label, i) => ({ poll_id: poll.id, label, position: i }));
+        const { error: optErr } = await supabase.from("poll_options").insert(optionRows);
+        btn.disabled = false;
+        if (optErr) { toast("Omröstningen skapades men alternativen kunde inte sparas: " + optErr.message, "error"); return; }
+
+        $("#pollQuestionInput").value = "";
+        $("#pollDescInput").value = "";
+        $("#pollFeaturedInput").checked = false;
+        $("#pollOptionsList").innerHTML = `
+            <div class="poll-option-row"><input type="text" class="poll-option-input" placeholder="Alternativ 1" maxlength="120"></div>
+            <div class="poll-option-row"><input type="text" class="poll-option-input" placeholder="Alternativ 2" maxlength="120"></div>`;
+        toast("Omröstningen är publicerad!", "success");
+        loadPollsManager();
+    }
+
+    async function loadPollsManager() {
+        const el = $("#pollsManagerList");
+        el.innerHTML = "<p>Laddar…</p>";
+        const { data, error } = await supabase.from("polls")
+            .select("id, question, status, is_featured, created_at")
+            .order("created_at", { ascending: false });
+        if (error) { el.innerHTML = `<p class="field-hint">Fel: ${escapeHtml(error.message)}</p>`; return; }
+        if (!data || !data.length) { el.innerHTML = "<p>Inga omröstningar ännu. Skapa en ovan.</p>"; return; }
+
+        el.innerHTML = data.map(p => `
+            <div class="tip-item" data-poll="${p.id}">
+                <strong>${p.is_featured ? "⭐ " : ""}${escapeHtml(p.question)}</strong>
+                <div class="tip-meta">
+                    <span>${p.status === "published" ? "Publicerad" : p.status === "closed" ? "Avslutad" : "Utkast"}</span>
+                    <button type="button" class="btn btn-ghost btn-sm feature-poll-btn" data-id="${p.id}" data-featured="${p.is_featured}">
+                        ${p.is_featured ? "Ta bort som Veckans omröstning" : "Gör till Veckans omröstning"}
+                    </button>
+                    ${p.status === "published"
+                        ? `<button type="button" class="btn btn-ghost btn-sm close-poll-btn" data-id="${p.id}">Avsluta</button>`
+                        : p.status === "closed"
+                            ? `<button type="button" class="btn btn-ghost btn-sm reopen-poll-btn" data-id="${p.id}">Öppna igen</button>`
+                            : ""}
+                    <button type="button" class="btn btn-ghost btn-sm delete-poll-btn" data-id="${p.id}">Ta bort</button>
+                </div>
+            </div>`).join("");
+
+        $all(".feature-poll-btn", el).forEach(btn => btn.addEventListener("click", async () => {
+            const makeFeatured = btn.dataset.featured !== "true";
+            if (makeFeatured) await supabase.from("polls").update({ is_featured: false }).eq("is_featured", true);
+            const { error: e } = await supabase.from("polls").update({ is_featured: makeFeatured }).eq("id", btn.dataset.id);
+            if (e) { toast("Kunde inte uppdatera omröstningen.", "error"); return; }
+            loadPollsManager();
+        }));
+        $all(".close-poll-btn", el).forEach(btn => btn.addEventListener("click", async () => {
+            await supabase.from("polls").update({ status: "closed" }).eq("id", btn.dataset.id);
+            loadPollsManager();
+        }));
+        $all(".reopen-poll-btn", el).forEach(btn => btn.addEventListener("click", async () => {
+            await supabase.from("polls").update({ status: "published" }).eq("id", btn.dataset.id);
+            loadPollsManager();
+        }));
+        $all(".delete-poll-btn", el).forEach(btn => btn.addEventListener("click", async () => {
+            if (!confirm("Ta bort omröstningen och alla dess röster?")) return;
+            const { error: e } = await supabase.from("polls").delete().eq("id", btn.dataset.id);
+            if (e) { toast("Kunde inte ta bort omröstningen.", "error"); return; }
+            loadPollsManager();
         }));
     }
 

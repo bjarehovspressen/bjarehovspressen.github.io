@@ -1143,3 +1143,84 @@ p { margin: 0 0 1em; }
 }
 .tip-item .tip-meta { font-size: 0.78rem; color: var(--bp-ink-faint); margin-top: 6px; display: flex; gap: 10px; align-items: center; }
 .tip-item.is-read { opacity: 0.6; }
+
+/* ---------------------------------------------------------------------------
+   BJÄREHOV-KARTA
+   ------------------------------------------------------------------------ */
+.map-intro { color: var(--bp-ink-soft); margin: -6px 0 16px; max-width: 60ch; }
+#bpMapWrap {
+    border: 1px solid var(--bp-line);
+    border-radius: 10px;
+    overflow: hidden;
+}
+#bpMap { width: 100%; height: 480px; background: var(--bp-paper-raised); }
+.leaflet-popup-content-wrapper { background: var(--bp-paper-raised); color: var(--bp-ink); border-radius: 8px; }
+.leaflet-popup-tip { background: var(--bp-paper-raised); }
+.map-popup { min-width: 180px; }
+.map-popup .cat-tag { margin-bottom: 6px; }
+.map-popup h4 { font-family: 'Fraunces', serif; font-size: 1rem; margin: 4px 0; line-height: 1.25; }
+.map-popup a.btn { margin-top: 6px; }
+
+/* ---------------------------------------------------------------------------
+   OMRÖSTNINGAR / POLLS
+   ------------------------------------------------------------------------ */
+.poll-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+.poll-card {
+    display: block;
+    background: var(--bp-paper-raised);
+    border: 1px solid var(--bp-line);
+    border-radius: 10px;
+    padding: 18px 18px 16px;
+    color: var(--bp-ink);
+}
+.poll-card:hover { border-color: var(--bp-line-strong); }
+.poll-card h3 { font-family: 'Fraunces', serif; font-size: 1.15rem; margin: 6px 0 8px; line-height: 1.3; }
+.poll-card .poll-meta { font-size: 0.8rem; color: var(--bp-ink-faint); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.poll-card .poll-status-badge {
+    display: inline-block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; padding: 2px 8px; border-radius: 20px;
+    background: var(--bp-sea); color: #fff;
+}
+.poll-card .poll-status-badge.closed { background: var(--bp-ink-faint); }
+
+.poll-widget, .poll-detail-card {
+    background: var(--bp-paper-raised);
+    border: 1px solid var(--bp-line);
+    border-radius: 12px;
+    padding: 22px;
+}
+.poll-widget h3, .poll-detail-card h2 { font-family: 'Fraunces', serif; margin-bottom: 4px; line-height: 1.3; }
+.poll-widget .poll-desc, .poll-detail-card .poll-desc { color: var(--bp-ink-soft); margin-bottom: 14px; font-size: 0.92rem; }
+
+.poll-options-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 6px; }
+.poll-option-choice {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--bp-line-strong); border-radius: 8px;
+    padding: 10px 12px; cursor: pointer; transition: border-color 150ms ease, background 150ms ease;
+}
+.poll-option-choice:hover { border-color: var(--bp-sea); }
+.poll-option-choice input { accent-color: var(--bp-sea); }
+.poll-option-choice.selected { border-color: var(--bp-sea); background: rgba(44,76,86,0.08); }
+.poll-vote-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.poll-vote-hint { font-size: 0.8rem; color: var(--bp-ink-faint); }
+
+.poll-results { display: flex; flex-direction: column; gap: 12px; }
+.poll-result-row .poll-result-label {
+    display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 4px;
+}
+.poll-result-row .poll-result-label strong { font-weight: 600; }
+.poll-result-track {
+    height: 12px; border-radius: 20px; background: var(--bp-line); overflow: hidden;
+}
+.poll-result-fill {
+    height: 100%; border-radius: 20px; background: var(--bp-sea);
+    transition: width 500ms ease;
+}
+.poll-result-row.is-winning .poll-result-fill { background: var(--bp-red); }
+.poll-total-votes { margin-top: 4px; font-size: 0.82rem; color: var(--bp-ink-faint); }
+.poll-closed-tag { color: var(--bp-ink-faint); font-size: 0.85rem; margin-bottom: 10px; }
+
+/* Artikelskaparen: platsfält + omröstningshantering */
+.location-quickfill { margin-top: 8px; }
+.poll-option-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.poll-option-row input { flex: 1; }
