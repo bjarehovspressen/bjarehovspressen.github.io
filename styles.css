@@ -142,6 +142,10 @@ p { margin: 0 0 1em; }
     padding: 0 20px;
 }
 
+@media (max-width: 599.98px) {
+    .container { padding: 0 16px; }
+}
+
 .sr-only {
     position: absolute;
     width: 1px; height: 1px;
@@ -178,9 +182,13 @@ p { margin: 0 0 1em; }
     gap: 16px;
 }
 
+@media (max-width: 599.98px) {
+    .masthead-row { padding: 10px 0; gap: 8px; }
+}
+
 .masthead {
     font-family: var(--font-display);
-    font-size: 1.9rem;
+    font-size: clamp(1.15rem, 4.6vw, 1.9rem);
     font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--bp-ink);
@@ -190,6 +198,16 @@ p { margin: 0 0 1em; }
 }
 
 .masthead .mark { color: var(--bp-red); }
+
+/* I headern (inte i footern) ska loggan krympa/trunkeras i stället för att
+   tvinga fram överflöde när det är trångt om plats. */
+.masthead-row .masthead {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+}
+.masthead-row .masthead > * { overflow: hidden; text-overflow: ellipsis; }
 
 .masthead .kicker {
     font-family: var(--font-ui);
@@ -202,6 +220,7 @@ p { margin: 0 0 1em; }
     border-left: 1px solid var(--bp-line-strong);
     padding-left: 10px;
     display: none;
+    flex-shrink: 0;
 }
 
 @media (min-width: 640px) {
@@ -212,17 +231,15 @@ p { margin: 0 0 1em; }
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-end;
-}
-
-.external-link-btn svg {
-    width: 15px;
-    height: 15px;
-    stroke: currentColor;
-    fill: none;
     flex-shrink: 0;
 }
+
+@media (max-width: 599.98px) {
+    .header-actions { gap: 6px; }
+}
+
 
 .icon-btn {
     display: inline-flex;
@@ -233,10 +250,16 @@ p { margin: 0 0 1em; }
     border: 1px solid var(--bp-line);
     background: var(--bp-paper-raised);
     border-radius: 50%;
+    flex-shrink: 0;
     transition: border-color var(--bp-transition), transform var(--bp-transition);
 }
 .icon-btn:hover { border-color: var(--bp-line-strong); transform: translateY(-1px); }
 .icon-btn svg { width: 18px; height: 18px; stroke: var(--bp-ink); fill: none; }
+
+@media (max-width: 599.98px) {
+    .icon-btn { width: 34px; height: 34px; }
+    .icon-btn svg { width: 16px; height: 16px; }
+}
 
 .btn {
     display: inline-flex;
@@ -264,15 +287,35 @@ p { margin: 0 0 1em; }
 
 .btn-sm { padding: 6px 12px; font-size: 0.82rem; }
 
+/* Knappar i headern som blir ikon-bara på mobil (Tipsa oss / Logga in) */
+.btn-compact-mobile .btn-text { display: inline; }
+@media (max-width: 599.98px) {
+    .btn-compact-mobile {
+        width: 34px; height: 34px;
+        padding: 0; gap: 0;
+        justify-content: center;
+        border-radius: 50%;
+    }
+    .btn-compact-mobile .btn-text { display: none; }
+    .btn-compact-mobile svg { width: 15px; height: 15px; }
+}
+
+.account-name { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 599.98px) {
+    .account-name { display: none; }
+}
+
 /* Nav */
 .site-nav {
     display: none;
     border-top: 1px solid var(--bp-line);
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
 }
 .site-nav.open { display: block; }
 
 @media (min-width: 900px) {
-    .site-nav { display: block; border-top: none; }
+    .site-nav { display: block; border-top: none; max-height: none; overflow: visible; }
 }
 
 .nav-list {
@@ -282,6 +325,22 @@ p { margin: 0 0 1em; }
     gap: 2px;
     margin: 0;
     padding: 6px 0;
+}
+
+/* På mobil blir den öppna menyn en fullbredds, radvis lista i stället för
+   ihopklämda rader med radbrytande "piller" — mycket lättare att träffa rätt. */
+@media (max-width: 899.98px) {
+    .site-nav.open .nav-list {
+        flex-direction: column;
+        gap: 2px;
+        padding: 10px 0 16px;
+    }
+    .site-nav.open .nav-list a {
+        width: 100%;
+        padding: 12px 6px;
+        font-size: 0.96rem;
+        border-radius: 8px;
+    }
 }
 
 @media (min-width: 900px) {
@@ -298,6 +357,18 @@ p { margin: 0 0 1em; }
     transition: background var(--bp-transition), color var(--bp-transition);
 }
 .nav-list a:hover, .nav-list a.active { color: var(--bp-ink); background: var(--bp-paper-raised); }
+
+/* Avdelare före "Spel" / "AI-assistent" i menyn */
+.nav-sep {
+    list-style: none;
+    width: 1px;
+    align-self: stretch;
+    background: var(--bp-line);
+    margin: 4px 6px;
+}
+@media (max-width: 899.98px) {
+    .nav-sep { width: auto; height: 1px; align-self: auto; margin: 8px 6px; }
+}
 
 .nav-toggle { display: inline-flex; }
 @media (min-width: 900px) { .nav-toggle { display: none; } }
@@ -446,6 +517,9 @@ p { margin: 0 0 1em; }
    5. HERO / TOP STORIES
    ------------------------------------------------------------------------ */
 .hero-section { padding: 28px 0 8px; }
+@media (max-width: 599.98px) {
+    .hero-section { padding: 18px 0 4px; }
+}
 
 .hero-grid {
     display: grid;
@@ -525,6 +599,9 @@ p { margin: 0 0 1em; }
    6. SECTION HEADERS & CATEGORY FILTER
    ------------------------------------------------------------------------ */
 .section-block { padding: 34px 0; border-top: 1px solid var(--bp-line); }
+@media (max-width: 599.98px) {
+    .section-block { padding: 24px 0; }
+}
 
 .section-head {
     display: flex;
@@ -541,9 +618,22 @@ p { margin: 0 0 1em; }
 
 .category-filters {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
-    margin-bottom: 22px;
+    margin: 0 -16px 22px;
+    padding: 0 16px 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.category-filters::-webkit-scrollbar { display: none; }
+
+@media (min-width: 600px) {
+    .category-filters { margin: 0 0 22px; padding: 0 0 2px; }
+}
+
+@media (min-width: 900px) {
+    .category-filters { flex-wrap: wrap; overflow-x: visible; }
 }
 
 .chip {
@@ -554,6 +644,8 @@ p { margin: 0 0 1em; }
     font-size: 0.84rem;
     font-weight: 500;
     color: var(--bp-ink-soft);
+    white-space: nowrap;
+    flex: 0 0 auto;
     transition: all var(--bp-transition);
 }
 .chip:hover { border-color: var(--bp-ink); color: var(--bp-ink); }
@@ -745,6 +837,9 @@ p { margin: 0 0 1em; }
     color: var(--bp-ink);
     transition: all var(--bp-transition);
 }
+@media (max-width: 479.98px) {
+    .reaction-btn { padding: 6px 10px; gap: 5px; font-size: 0.84rem; }
+}
 .reaction-btn .reaction-emoji { font-size: 1.05rem; line-height: 1; }
 .reaction-btn:hover { border-color: var(--bp-ink); transform: translateY(-1px); }
 .reaction-btn.active {
@@ -912,7 +1007,8 @@ p { margin: 0 0 1em; }
    ------------------------------------------------------------------------ */
 .toast-stack {
     position: fixed;
-    bottom: 20px; right: 20px;
+    bottom: max(20px, env(safe-area-inset-bottom, 0px));
+    left: 20px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -978,7 +1074,7 @@ p { margin: 0 0 1em; }
 
 /* ============================== AI-ASSISTENT-WIDGET ============================== */
 .ai-fab {
-    position: fixed; right: 16px; bottom: 16px; z-index: 400;
+    position: fixed; right: 16px; bottom: max(16px, env(safe-area-inset-bottom, 0px)); z-index: 400;
     width: 54px; height: 54px; border-radius: 50%;
     background: var(--bp-sea); color: #fff; border: none;
     font-size: 1.4rem; box-shadow: var(--bp-shadow, 0 6px 18px rgba(0,0,0,.25));
@@ -1224,3 +1320,19 @@ p { margin: 0 0 1em; }
 .location-quickfill { margin-top: 8px; }
 .poll-option-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
 .poll-option-row input { flex: 1; }
+
+/* ---------------------------------------------------------------------------
+   15. MOBIL — tätare vertikal rytm och mindre "trångt" intryck
+   ------------------------------------------------------------------------ */
+@media (max-width: 599.98px) {
+    .article-view { padding: 18px 0 44px; }
+    .article-byline { padding: 12px 0; margin-bottom: 20px; gap: 8px; }
+    .article-cover { margin-bottom: 18px; }
+    .reaction-bar { margin: 24px 0; padding: 12px 0; gap: 6px; }
+    .reaction-hint { margin-left: 0; width: 100%; order: 10; }
+    .related-block { margin-top: 30px; }
+    .comments-section { margin-top: 30px; }
+    .modal-box { padding: 22px; }
+    .search-box { padding: 14px; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}

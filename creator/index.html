@@ -13,25 +13,33 @@
 
 <!-- ============================== TOPBAR ============================== -->
 <header class="cr-topbar">
-    <a href="index.html" class="cr-brand">
-        <span class="mark">Bjärehovs</span> Pressen <span class="tag">Artikelskaparen</span>
-    </a>
-    <div class="cr-topbar-actions" id="topbarActions">
-        <span class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">Ej ändrat</span></span>
-        <button class="btn btn-ghost btn-sm" id="myArticlesBtn">Mina artiklar</button>
-        <button class="btn btn-ghost btn-sm" id="tipsInboxBtn">💡 Tips</button>
-        <button class="btn btn-ghost btn-sm" id="galleryManagerBtn">📸 Galleri</button>
-        <button class="btn btn-ghost btn-sm" id="pollsManagerBtn">📊 Omröstningar</button>
-        <button class="btn btn-ghost btn-sm" id="statsBtn">📈 Statistik</button>
-        <button class="btn btn-ghost btn-sm hidden" id="adminUsersBtn">Användare</button>
-        <button class="btn btn-outline btn-sm" id="newArticleBtn">Ny artikel</button>
-        <button class="btn btn-outline btn-sm" id="previewBtn">Förhandsgranska</button>
-        <button class="btn btn-outline btn-sm" id="saveDraftBtn">Spara utkast</button>
-        <button class="btn btn-primary btn-sm" id="publishBtn">Publicera</button>
-        <a href="../index.html" class="btn btn-ghost btn-sm">Till sajten</a>
-        <button class="icon-btn" id="logoutBtn" title="Logga ut" aria-label="Logga ut">
-            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-        </button>
+    <div class="cr-topbar-top">
+        <a href="index.html" class="cr-brand">
+            <span class="mark">Bjärehovs</span> Pressen <span class="tag">Artikelskaparen</span>
+        </a>
+        <div class="cr-topbar-meta">
+            <span class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">Ej ändrat</span></span>
+            <a href="../index.html" class="btn btn-ghost btn-sm">Till sajten</a>
+            <button class="icon-btn" id="logoutBtn" title="Logga ut" aria-label="Logga ut">
+                <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+            </button>
+        </div>
+    </div>
+    <div class="cr-topbar-bottom" id="topbarActions">
+        <div class="cr-tabs">
+            <button class="cr-tab" id="myArticlesBtn">Mina artiklar</button>
+            <button class="cr-tab" id="tipsInboxBtn">💡 Tips</button>
+            <button class="cr-tab" id="galleryManagerBtn">📸 Galleri</button>
+            <button class="cr-tab" id="pollsManagerBtn">📊 Omröstningar</button>
+            <button class="cr-tab" id="statsBtn">📈 Statistik</button>
+            <button class="cr-tab hidden" id="adminUsersBtn">Användare</button>
+        </div>
+        <div class="cr-workflow">
+            <button class="btn btn-outline btn-sm" id="newArticleBtn">Ny artikel</button>
+            <button class="btn btn-outline btn-sm" id="previewBtn">Förhandsgranska</button>
+            <button class="btn btn-outline btn-sm" id="saveDraftBtn">Spara utkast</button>
+            <button class="btn btn-primary btn-sm" id="publishBtn">Publicera</button>
+        </div>
     </div>
 </header>
 
